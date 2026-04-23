@@ -41,41 +41,62 @@ export default function LuxeEstate() {
     <div className={`luxe-root ${dark ? 'dark-mode' : ''}`}>
       
       {/* ── NAVBAR ── */}
-      <nav style={{ 
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, 
-        background: page === 'home' ? 'transparent' : 'var(--card-bg)', 
-        borderBottom: page === 'home' ? 'none' : '1px solid var(--border)', 
-        backdropFilter: 'blur(20px)', 
-        padding: '0 24px' 
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => setPage('home')}>
-             <div style={{ width: 28, height: 28, border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: 12, height: 12, background: 'var(--gold)', transform: 'rotate(45deg)' }} />
-              </div>
-             <span className="font-serif" style={{ fontSize: 22, color: page === 'home' ? 'white' : 'var(--text)' }}>LuxeEstate™</span>
-          </div>
-          
-          <div style={{ display: 'flex', gap: 28 }} className="hide-mobile">
-            {['listings', 'map', 'dashboard'].map(id => (
-              <span 
-                key={id} 
-                onClick={() => setPage(id)} 
-                className={`nav-link ${page === id ? 'active' : ''}`} 
-                style={{ cursor: 'pointer', textTransform: 'capitalize', color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}
-              >
-                {id}
-              </span>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div onClick={() => setDark(!dark)} style={{ cursor: 'pointer', color: page === 'home' ? '#fff' : 'var(--text)' }}>
-              {dark ? <Icons.Moon /> : <Icons.Sun />}
-            </div>
-          </div>
+      {/* ── NAVBAR ── */}
+<nav style={{ 
+  position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, // Increased z-index
+  background: page === 'home' ? 'rgba(0,0,0,0.2)' : 'var(--card-bg)', // Added slight tint for home
+  borderBottom: page === 'home' ? 'none' : '1px solid var(--border)', 
+  backdropFilter: 'blur(20px)', 
+  padding: '0 24px' 
+}}>
+  <div style={{ maxWidth: 1200, margin: '0 auto', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    
+    {/* Logo */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => setPage('home')}>
+       <div style={{ width: 28, height: 28, border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 12, height: 12, background: 'var(--gold)', transform: 'rotate(45deg)' }} />
         </div>
-      </nav>
+       <span className="font-serif" style={{ fontSize: 22, color: page === 'home' ? 'white' : 'var(--text)' }}>LuxeEstate™</span>
+    </div>
+    
+    {/* Navigation Links */}
+    <div style={{ display: 'flex', gap: 28 }} className="hide-mobile">
+      {['listings', 'map', 'dashboard'].map(id => (
+        <span 
+          key={id} 
+          onClick={() => setPage(id)} 
+          className={`nav-link ${page === id ? 'active' : ''}`} 
+          style={{ 
+            cursor: 'pointer', 
+            textTransform: 'capitalize', 
+            color: page === 'home' ? 'white' : 'var(--text-muted)',
+            fontWeight: page === id ? '600' : '400'
+          }}
+        >
+          {id}
+        </span>
+      ))}
+    </div>
+
+    {/* Dark Mode Toggle - ENSURE THIS IS VISIBLE */}
+    <div 
+      onClick={() => setDark(!dark)} 
+      style={{ 
+        cursor: 'pointer', 
+        padding: '8px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(255,255,255,0.1)', // Subtle background to see the hit area
+        color: page === 'home' ? '#fff' : 'var(--text)',
+        transition: 'all 0.2s ease'
+      }}
+    >
+      {dark ? <Icons.Moon size={20} /> : <Icons.Sun size={20} />}
+    </div>
+  </div>
+</nav>
 
       <main>
         {/* ── HOME PAGE ── */}
