@@ -1,10 +1,15 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
-import { getProperties, createProperty, updateProperty, deleteProperty } from "../controllers/properties.controller.js";
+import { authenticate } from "../../middleware/auth.js";
+import {
+  getProperties,
+  createProperty,
+  updateProperty,
+  deleteProperty
+} from "../controllers/properties.controller.js";
 
 const router = express.Router();
 
-// Validation middleware
 const validateProperty = [
   body('title').notEmpty().withMessage('Title is required'),
   body('description').notEmpty().withMessage('Description is required'),
@@ -33,10 +38,12 @@ const validateUpdate = [
   }
 ];
 
-// Routes
+// Public: anyone can browse listings
 router.get("/", getProperties);
-router.post("/", validateProperty, createProperty);
-router.put("/:id", validateUpdate, updateProperty);
-router.delete("/:id", deleteProperty);
+
+// Protected: only logged-in users (agents/admins) can write
+router.post("/", authenticate, validateProperty, createProperty);
+router.put("/:id", authenticate, validateUpdate, updateProperty);
+router.delete("/:id", authenticate, deleteProperty);
 
 export default router;

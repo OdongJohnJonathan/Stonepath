@@ -1,7 +1,7 @@
 import express from 'express';
-import pool from '../db/db.js'; // adjust path if needed
-import { hashPassword, comparePassword } from '../utils/hash.js';
-import { generateToken } from '../utils/jwt.js';
+import pool from '../db.js';
+import { hashPassword, comparePassword } from '../../utils/hash.js';
+import { generateToken } from '../../utils/jwt.js';
 
 const router = express.Router();
 

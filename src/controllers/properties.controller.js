@@ -33,14 +33,22 @@ export const getProperties = async (req, res) => {
 // CREATE a new property
 export const createProperty = async (req, res) => {
   try {
-    const { title, description, location, address, bedrooms, bathrooms, square_footage, property_type_id, transaction_type_id } = req.body;
+    const {
+      title, description, location, address,
+      bedrooms, bathrooms, square_footage,
+      property_type_id, transaction_type_id
+    } = req.body;
+
+    const created_by = req.user?.id; // comes from the JWT via authenticate middleware
 
     const result = await pool.query(
       `INSERT INTO properties
-      (title, description, location, address, bedrooms, bathrooms, square_footage, property_type_id, transaction_type_id, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())
+      (title, description, location, address, bedrooms, bathrooms, square_footage,
+       property_type_id, transaction_type_id, created_by, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
       RETURNING *`,
-      [title, description, location, address, bedrooms, bathrooms, square_footage, property_type_id, transaction_type_id]
+      [title, description, location, address, bedrooms, bathrooms,
+       square_footage, property_type_id, transaction_type_id, created_by]
     );
 
     res.status(201).json(result.rows[0]);

@@ -2,10 +2,8 @@ import "dotenv/config";
 import { PrismaClient } from '@prisma/client';
 
 // Prisma 7 requires explicit datasourceUrl when engine type is "client"
-// @ts-ignore
-const prisma = new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
-});
+
+const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding database...');
