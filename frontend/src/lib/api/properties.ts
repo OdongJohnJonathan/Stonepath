@@ -1,7 +1,6 @@
 import { apiRequest } from "./client";
 
-export interface Property {
-  id: string;
+export interface CreatePropertyPayload {
   title: string;
   description: string;
   location: string;
@@ -9,13 +8,10 @@ export interface Property {
   bedrooms?: number;
   bathrooms?: number;
   square_footage?: number;
-  status?: string;
-  property_type_id?: number;
-  transaction_type_id?: number;
-  images: string[];
+  property_type_id: number;
+  transaction_type_id: number;
+  images?: string[];
   amenities?: Record<string, unknown>;
-  created_by?: string;
-  created_at?: string;
 }
 
 export interface PropertyFilters {
@@ -40,7 +36,6 @@ export interface CreatePropertyPayload {
 }
 
 export const propertiesApi = {
-  // Public — no token needed
   getAll: (filters: PropertyFilters = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, val]) => {
@@ -50,7 +45,6 @@ export const propertiesApi = {
     return apiRequest<Property[]>(`/properties${query ? `?${query}` : ""}`);
   },
 
-  // Protected — token required
   create: (data: CreatePropertyPayload, token: string) =>
     apiRequest<Property>("/properties", { method: "POST", body: data, token }),
 

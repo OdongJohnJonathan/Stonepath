@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Stonepath Estates",

@@ -26,14 +26,6 @@ export const enquiriesApi = {
   getMyEnquiries: (token: string) =>
     apiRequest<Enquiry[]>("/enquiries", { token }),
 
-  updateStatus: (
-    id: string,
-    status: "pending" | "responded" | "closed",
-    token: string
-  ) =>
-    apiRequest<Enquiry>(`/enquiries/${id}`, {
-      method: "PUT",
-      body: { status },
-      token,
-    }),
+  updateStatus: (id: string, status: "pending" | "responded" | "closed", token: string) =>
+    apiRequest<Enquiry>(`/enquiries/${id}`, { method: "PUT", body: { status }, token }),
 };

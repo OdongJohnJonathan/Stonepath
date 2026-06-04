@@ -6,14 +6,8 @@ export const savedApi = {
     apiRequest<Property[]>("/saved", { token }),
 
   save: (propertyId: string, token: string) =>
-    apiRequest<{ message: string }>(`/saved/${propertyId}`, {
-      method: "POST",
-      token,
-    }),
+    apiRequest<{ message: string }>(`/saved/${propertyId}`, { method: "POST", token }),
 
   remove: (propertyId: string, token: string) =>
-    apiRequest<{ message: string }>(`/saved/${propertyId}`, {
-      method: "DELETE",
-      token,
-    }),
+    apiRequest<{ message: string }>(`/saved/${propertyId}`, { method: "DELETE", token }),
 };

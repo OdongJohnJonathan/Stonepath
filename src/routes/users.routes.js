@@ -5,7 +5,6 @@ import pool from "../db.js";
 
 const router = express.Router();
 
-// GET /users/me — get your own profile
 router.get("/me", authenticate, async (req, res) => {
   try {
     const result = await pool.query(
@@ -14,11 +13,7 @@ router.get("/me", authenticate, async (req, res) => {
        FROM users WHERE id = $1`,
       [req.user.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
+    if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -26,11 +21,10 @@ router.get("/me", authenticate, async (req, res) => {
   }
 });
 
-// PUT /users/me — update your own profile
 router.put("/me", authenticate, [
-  body("first_name").optional().notEmpty().withMessage("First name cannot be empty"),
-  body("last_name").optional().notEmpty().withMessage("Last name cannot be empty"),
-  body("phone_number").optional().isMobilePhone().withMessage("Invalid phone number"),
+  body("first_name").optional().notEmpty(),
+  body("last_name").optional().notEmpty(),
+  body("phone_number").optional().isMobilePhone(),
   (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -39,7 +33,6 @@ router.put("/me", authenticate, [
 ], async (req, res) => {
   try {
     const { first_name, last_name, phone_number, profile_image_url } = req.body;
-
     const result = await pool.query(
       `UPDATE users
        SET first_name = COALESCE($1, first_name),
@@ -51,7 +44,6 @@ router.put("/me", authenticate, [
        RETURNING id, first_name, last_name, email, phone_number, profile_image_url`,
       [first_name, last_name, phone_number, profile_image_url, req.user.id]
     );
-
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
