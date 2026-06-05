@@ -73,6 +73,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     outline: "none",
     fontFamily: "'DM Sans', sans-serif",
     borderRadius: 2,
+    boxSizing: "border-box",
   };
 
   const labelStyle: React.CSSProperties = {
@@ -91,7 +92,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: 24, backdropFilter: "blur(4px)",
     }}>
-      <div style={{
+      <div className="modal-card" style={{
         background: "var(--card-bg)",
         border: "1px solid var(--border)",
         padding: "40px 36px",
@@ -99,13 +100,16 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
         maxHeight: "90vh", overflowY: "auto",
       }}>
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <p style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 6 }}>
-            New Listing
-          </p>
-          <h2 className="font-serif" style={{ fontSize: 28, fontWeight: 300, color: "var(--text)" }}>
-            Submit a Property
-          </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+          <div>
+            <p style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 6 }}>
+              New Listing
+            </p>
+            <h2 className="font-serif" style={{ fontSize: 28, fontWeight: 300, color: "var(--text)" }}>
+              Submit a Property
+            </h2>
+          </div>
+          <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 20, padding: 4 }}>✕</button>
         </div>
 
         {error && (
@@ -130,7 +134,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
           </div>
 
           {/* Location + Address */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
               <label style={labelStyle}>City / Area *</label>
               <input name="location" value={form.location} onChange={handleChange} required placeholder="e.g. Kampala" style={inputStyle} />
@@ -142,7 +146,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
           </div>
 
           {/* Bedrooms + Bathrooms + Sqft */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+          <div className="modal-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
             <div>
               <label style={labelStyle}>Bedrooms *</label>
               <input name="bedrooms" type="number" min="0" value={form.bedrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
@@ -158,7 +162,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
           </div>
 
           {/* Property Type + Transaction Type */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
               <label style={labelStyle}>Property Type *</label>
               <select name="property_type_id" value={form.property_type_id} onChange={handleChange} style={inputStyle}>
@@ -190,13 +194,17 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </label>
             <input name="image_url" value={form.image_url} onChange={handleChange} placeholder="https://images.unsplash.com/..." style={inputStyle} />
             {form.image_url && (
-              <img src={form.image_url} alt="preview" onError={e => (e.currentTarget.style.display = 'none')}
-                style={{ marginTop: 8, width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }} />
+              <img
+                src={form.image_url}
+                alt="preview"
+                onError={e => (e.currentTarget.style.display = 'none')}
+                style={{ marginTop: 8, width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }}
+              />
             )}
           </div>
 
           {/* Buttons */}
-          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+          <div className="modal-grid-2" style={{ display: "flex", gap: 12, marginTop: 8 }}>
             <button type="button" onClick={onCancel}
               style={{ flex: 1, background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "12px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
               Cancel

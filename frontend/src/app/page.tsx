@@ -14,17 +14,19 @@ import type { Property } from "@/lib/api";
 
 export default function LuxeEstate() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
 
   const [dark, setDark] = useState(false);
   const [page, setPage] = useState('home');
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [dashboardProperties, setDashboardProperties] = useState<Property[]>([]);
   const [loadingProps, setLoadingProps] = useState(true);
   const [activePin, setActivePin] = useState<string | null>(null);
   const [selectedProp, setSelectedProp] = useState<Property | null>(null);
   const [filterType, setFilterType] = useState('All');
 
+  // Public listings — approved only
   useEffect(() => {
     propertiesApi.getAll()
       .then(setProperties)
@@ -32,15 +34,37 @@ export default function LuxeEstate() {
       .finally(() => setLoadingProps(false));
   }, []);
 
+  // Dashboard — all properties including pending (agents & admins only)
+  useEffect(() => {
+    if (token && (Number(user?.role) === 1 || Number(user?.role) === 2)) {
+      propertiesApi.getAllForDashboard(token)
+        .then(setDashboardProperties)
+        .catch(console.error);
+    }
+  }, [token, user]);
+
+  const refreshDashboard = () => {
+    propertiesApi.getAll().then(setProperties).catch(console.error);
+    if (token && (Number(user?.role) === 1 || Number(user?.role) === 2)) {
+      propertiesApi.getAllForDashboard(token).then(setDashboardProperties).catch(console.error);
+    }
+  };
+
   const toggleSave = useCallback((id: string) => {
     setSavedIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
   }, []);
 
   const typeFilters = ['All', 'Residential', 'Commercial', 'Land'];
 
+  const propertyTypeMap: Record<string, number> = {
+    'Residential': 1,
+    'Commercial': 2,
+    'Land': 3,
+  };
+
   const filteredProps = filterType === 'All'
     ? properties
-    : properties.filter(p => p.status === filterType.toLowerCase());
+    : properties.filter(p => p.property_type_id === propertyTypeMap[filterType]);
 
   const handleView = (property: Property) => {
     setSelectedProp(property);
@@ -68,7 +92,7 @@ export default function LuxeEstate() {
             <span className="font-serif" style={{ fontSize: 22, color: page === 'home' ? 'white' : 'var(--text)' }}>Stonepath™</span>
           </div>
 
-          {/* Nav Links */}
+          {/* Nav Links — hidden on mobile */}
           <div style={{ display: 'flex', gap: 28 }} className="hide-mobile">
             {['listings', 'map', 'dashboard'].map(id => (
               <span
@@ -93,71 +117,24 @@ export default function LuxeEstate() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {user ? (
               <>
-                <span style={{ fontSize: 13, color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
+                <span className="hide-mobile" style={{ fontSize: 13, color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
                   {user.first_name}
                 </span>
-                <button
-                  onClick={logout}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid var(--gold)',
-                    color: 'var(--gold)',
-                    padding: '6px 14px',
-                    fontSize: 11,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    cursor: 'pointer',
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}
-                >
+                <button onClick={logout} style={{ background: 'transparent', border: '1px solid var(--gold)', color: 'var(--gold)', padding: '6px 14px', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
                   Sign Out
                 </button>
               </>
             ) : (
               <>
-                <button
-                  onClick={() => router.push('/login')}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}
-                >
+                <button onClick={() => router.push('/login')} className="hide-mobile" style={{ background: 'transparent', border: 'none', color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
                   Sign In
                 </button>
-                <button
-                  onClick={() => router.push('/register')}
-                  style={{
-                    background: 'var(--gold)',
-                    border: 'none',
-                    color: '#0a0a0b',
-                    padding: '8px 18px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    cursor: 'pointer',
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}
-                >
+                <button onClick={() => router.push('/register')} style={{ background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '8px 18px', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
                   Register
                 </button>
               </>
             )}
-
-            {/* Dark mode toggle */}
-            <div
-              onClick={() => setDark(!dark)}
-              style={{
-                cursor: 'pointer', padding: '8px', borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(255,255,255,0.1)',
-                color: page === 'home' ? '#fff' : 'var(--text)',
-              }}
-            >
+            <div onClick={() => setDark(!dark)} style={{ cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: page === 'home' ? '#fff' : 'var(--text)' }}>
               {dark ? <Icons.Moon size={20} /> : <Icons.Sun size={20} />}
             </div>
           </div>
@@ -170,14 +147,22 @@ export default function LuxeEstate() {
           <>
             <HeroSection onSearch={() => setPage('listings')} dark={dark} />
             <section style={{ padding: '80px 24px', maxWidth: 1200, margin: '0 auto' }}>
-              <p style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 8 }}>Featured Listings</p>
-              <h2 className="font-serif" style={{ fontSize: 32, fontWeight: 300, marginBottom: 32 }}>Recently Added</h2>
+              <p style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 8 }}>
+                Featured Listings
+              </p>
+              <h2 className="font-serif" style={{ fontSize: 32, fontWeight: 300, marginBottom: 32 }}>
+                Recently Added
+              </h2>
               {loadingProps ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading properties...</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                  Loading properties...
+                </div>
               ) : properties.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No properties yet. Check back soon.</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                  No properties yet. Check back soon.
+                </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+                <div className="property-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
                   {properties.slice(0, 3).map(p => (
                     <PropertyCard key={p.id} property={p} onView={handleView} onSave={toggleSave} saved={savedIds.includes(p.id)} />
                   ))}
@@ -189,8 +174,8 @@ export default function LuxeEstate() {
 
         {/* ── LISTINGS ── */}
         {page === 'listings' && (
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: '120px 24px' }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 32, flexWrap: 'wrap' }}>
+          <div className="listings-page" style={{ maxWidth: 1200, margin: '0 auto', padding: '120px 24px' }}>
+            <div className="filter-bar" style={{ display: 'flex', gap: 8, marginBottom: 32, flexWrap: 'wrap' }}>
               {typeFilters.map(t => (
                 <button
                   key={t}
@@ -209,11 +194,15 @@ export default function LuxeEstate() {
               ))}
             </div>
             {loadingProps ? (
-              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading properties...</div>
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                Loading properties...
+              </div>
             ) : filteredProps.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No properties found.</div>
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                No properties found.
+              </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
+              <div className="property-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
                 {filteredProps.map(p => (
                   <PropertyCard key={p.id} property={p} onView={handleView} onSave={toggleSave} saved={savedIds.includes(p.id)} />
                 ))}
@@ -240,30 +229,30 @@ export default function LuxeEstate() {
         {page === 'dashboard' && (
           <div style={{ paddingTop: 72 }}>
             <Dashboard
-              properties={properties}
+              properties={Number(user?.role) === 1 || Number(user?.role) === 2
+                ? dashboardProperties
+                : properties}
               saved={savedIds}
-              onPropertySubmitted={() => {
-                // Re-fetch properties so new listing appears immediately
-                propertiesApi.getAll().then(setProperties).catch(console.error);
-              }}
+              onPropertySubmitted={refreshDashboard}
             />
           </div>
         )}
       </main>
 
-      {/* ── MOBILE NAV ── */}
-      <div className="bottom-nav show-mobile-only" style={{
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <div className="show-mobile-only" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         height: 64, background: 'var(--card-bg)',
         borderTop: '1px solid var(--border)',
-        display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+        justifyContent: 'space-around', alignItems: 'center',
         zIndex: 100
       }}>
-        <div onClick={() => setPage('home')} style={{ opacity: page === 'home' ? 1 : 0.5, cursor: 'pointer' }}><Icons.Home /></div>
-        <div onClick={() => setPage('listings')} style={{ opacity: page === 'listings' ? 1 : 0.5, cursor: 'pointer' }}><Icons.Search /></div>
-        <div onClick={() => setPage('map')} style={{ opacity: page === 'map' ? 1 : 0.5, cursor: 'pointer' }}><Icons.Map /></div>
-        <div onClick={() => setPage('dashboard')} style={{ opacity: page === 'dashboard' ? 1 : 0.5, cursor: 'pointer' }}><Icons.User /></div>
+        <div onClick={() => setPage('home')} style={{ opacity: page === 'home' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Home /></div>
+        <div onClick={() => setPage('listings')} style={{ opacity: page === 'listings' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Search /></div>
+        <div onClick={() => setPage('map')} style={{ opacity: page === 'map' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Map /></div>
+        <div onClick={() => setPage('dashboard')} style={{ opacity: page === 'dashboard' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.User /></div>
       </div>
+
     </div>
   );
 }

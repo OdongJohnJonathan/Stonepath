@@ -1,6 +1,7 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import { authenticate } from "../../middleware/auth.js";
+import pool from "../db.js";
 import {
   getProperties,
   createProperty,
@@ -24,6 +25,30 @@ const validateProperty = [
     next();
   }
 ];
+
+// Admin only — approve a property
+router.put("/:id/approve", authenticate, async (req, res) => {
+  try {
+    if (Number(req.user.role) !== 1) {
+      return res.status(403).json({ error: "Only admins can approve properties" });
+    }
+
+    const result = await pool.query(
+      `UPDATE properties SET status = 'approved', updated_at = NOW()
+       WHERE id = $1 AND deleted_at IS NULL RETURNING *`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to approve property" });
+  }
+});
 
 router.get("/", getProperties);
 router.post("/", authenticate, validateProperty, createProperty);

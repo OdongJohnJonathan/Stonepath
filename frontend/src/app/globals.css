@@ -510,3 +510,235 @@
     .show-mobile-only { display: none !important; }
     .bottom-nav { display: none; }
   }
+
+  /* ═══════════════════════════════════════════
+   MOBILE RESPONSIVENESS
+═══════════════════════════════════════════ */
+
+/* ── Navbar ── */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .show-mobile-only {
+    display: flex !important;
+  }
+
+  /* Navbar shrinks on mobile */
+  nav > div {
+    padding: 0 16px;
+  }
+
+  /* Logo text smaller on mobile */
+  nav .font-serif {
+    font-size: 18px !important;
+  }
+
+  /* Auth buttons in navbar stack tighter */
+  nav > div > div:last-child {
+    gap: 8px !important;
+  }
+}
+
+/* ── Hero Section ── */
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: 100svh;
+    padding: 100px 16px 60px !important;
+  }
+
+  .hero-section h1 {
+    font-size: 36px !important;
+    line-height: 1.1 !important;
+  }
+
+  .hero-section p {
+    font-size: 14px !important;
+  }
+
+  .hero-search-bar {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .hero-search-bar input {
+    width: 100% !important;
+  }
+
+  .hero-search-bar button {
+    width: 100% !important;
+  }
+}
+
+/* ── Property Cards Grid ── */
+@media (max-width: 640px) {
+  /* Single column on small phones */
+  .property-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Two columns on tablets */
+  .property-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ── Property Card ── */
+@media (max-width: 768px) {
+  .property-card {
+    margin-bottom: 0;
+  }
+
+  .card-img-wrap {
+    height: 200px !important;
+  }
+}
+
+/* ── Listings Page ── */
+@media (max-width: 768px) {
+  .listings-page {
+    padding: 100px 16px 100px !important;
+  }
+
+  .filter-bar {
+    gap: 6px !important;
+  }
+
+  .filter-bar button {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ── Dashboard ── */
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-header h2 {
+    font-size: 28px !important;
+  }
+
+  .dashboard-header button {
+    width: 100% !important;
+  }
+
+  /* Stats grid — 2 columns on mobile */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Table scrolls horizontally */
+  .table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-wrapper table {
+    min-width: 600px;
+  }
+}
+
+/* ── Property Detail ── */
+@media (max-width: 768px) {
+  .detail-layout {
+    flex-direction: column !important;
+  }
+
+  .detail-sidebar {
+    flex: none !important;
+    width: 100% !important;
+  }
+
+  .gallery-main {
+    height: 260px !important;
+  }
+
+  .gallery-thumbs {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+}
+
+/* ── Auth Pages (Login/Register) ── */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 28px 20px !important;
+  }
+
+  .auth-name-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .role-selector {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Map Page ── */
+@media (max-width: 768px) {
+  .map-container {
+    height: calc(100vh - 72px - 64px) !important;
+  }
+}
+
+/* ── Modal (Submit Form + Preview) ── */
+@media (max-width: 640px) {
+  .modal-card {
+    padding: 24px 16px !important;
+    max-height: 95vh !important;
+  }
+
+  .modal-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .modal-grid-3 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ── Mobile Bottom Nav ── */
+.show-mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .show-mobile-only {
+    display: flex !important;
+  }
+
+  /* Add bottom padding so content doesn't hide behind mobile nav */
+  main {
+    padding-bottom: 64px;
+  }
+}
+
+/* ── General touch improvements ── */
+@media (max-width: 768px) {
+  /* Bigger tap targets */
+  button, a {
+    min-height: 40px;
+  }
+
+  /* Prevent text from being too small */
+  input, textarea, select {
+    font-size: 16px !important; /* prevents iOS zoom on focus */
+  }
+}
+
+/* ── Tablet adjustments ── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .dashboard-layout {
+    padding: 24px 16px !important;
+  }
+
+  nav > div {
+    padding: 0 16px;
+  }
+}

@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Register
 router.post('/register', async (req, res) => {
-  const { first_name, last_name, email, password, phone_number } = req.body;
+  const { first_name, last_name, email, password, phone_number, role } = req.body;
 
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: 'First name, last name, email and password are required' });
@@ -17,8 +17,11 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
+  // Only allow roles 2 (Agent) and 3 (Buyer) on self-registration
+  // Role 1 (Admin) can only be set directly in the database
+  const assignedRole = role === 2 ? 2 : 3;
+
   try {
-    // Check if email already exists
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'An account with this email already exists' });
@@ -28,9 +31,9 @@ router.post('/register', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO users (first_name, last_name, email, password_hash, phone_number, role, is_verified, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 2, false, NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, false, NOW(), NOW())
        RETURNING *`,
-      [first_name, last_name, email, password_hash, phone_number || null]
+      [first_name, last_name, email, password_hash, phone_number || null, assignedRole]
     );
 
     const user = result.rows[0];
@@ -40,7 +43,6 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // Login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;

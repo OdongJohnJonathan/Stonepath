@@ -10,7 +10,15 @@ export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
 
-  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone_number: "", password: "", confirm_password: "" });
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone_number: "",
+    password: "",
+    confirm_password: "",
+    role: 3, // default to Buyer
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -27,9 +35,12 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { token } = await authApi.register({
-        first_name: form.first_name, last_name: form.last_name,
-        email: form.email, password: form.password,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        password: form.password,
         phone_number: form.phone_number || undefined,
+        role: form.role,
       });
       await login(token);
       router.push("/");
@@ -40,8 +51,16 @@ export default function RegisterPage() {
     }
   };
 
-  const inputStyle: React.CSSProperties = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(201,168,76,0.2)", padding: "12px 16px", color: "white", fontSize: 14, outline: "none", fontFamily: "'DM Sans', sans-serif" };
-  const labelStyle: React.CSSProperties = { display: "block", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8892a4", marginBottom: 8 };
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(201,168,76,0.2)", padding: "12px 16px",
+    color: "white", fontSize: 14, outline: "none", fontFamily: "'DM Sans', sans-serif",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block", fontSize: 11, letterSpacing: "0.1em",
+    textTransform: "uppercase", color: "#8892a4", marginBottom: 8,
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #0a0a0b 0%, #1a1410 40%, #0d1520 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
@@ -49,6 +68,7 @@ export default function RegisterPage() {
 
       <div style={{ width: "100%", maxWidth: 480, position: "relative", zIndex: 1 }}>
 
+        {/* Logo */}
         <div onClick={() => router.push("/")} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40, cursor: "pointer", justifyContent: "center" }}>
           <div style={{ width: 28, height: 28, border: "1px solid #c9a84c", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ width: 12, height: 12, background: "#c9a84c", transform: "rotate(45deg)" }} />
@@ -67,6 +87,34 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Role Selection */}
+            <div>
+              <label style={labelStyle}>I am a</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {[
+                  { role: 3, label: "Buyer", desc: "Browse & save properties", icon: "🏠" },
+                  { role: 2, label: "Agent", desc: "List & manage properties", icon: "🏢" },
+                ].map(opt => (
+                  <div
+                    key={opt.role}
+                    onClick={() => setForm(f => ({ ...f, role: opt.role }))}
+                    style={{
+                      padding: "16px 12px", cursor: "pointer", textAlign: "center",
+                      border: form.role === opt.role ? "1px solid #c9a84c" : "1px solid rgba(201,168,76,0.2)",
+                      background: form.role === opt.role ? "rgba(201,168,76,0.1)" : "transparent",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <div style={{ fontSize: 24, marginBottom: 6 }}>{opt.icon}</div>
+                    <div style={{ color: form.role === opt.role ? "#c9a84c" : "white", fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{opt.label}</div>
+                    <div style={{ color: "#8892a4", fontSize: 11 }}>{opt.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Name row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
                 <label style={labelStyle}>First Name</label>
@@ -84,7 +132,10 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label style={labelStyle}>Phone Number <span style={{ color: "rgba(136,146,164,0.6)", textTransform: "none", fontSize: 11 }}>(optional)</span></label>
+              <label style={labelStyle}>
+                Phone Number{" "}
+                <span style={{ color: "rgba(136,146,164,0.6)", textTransform: "none", fontSize: 11 }}>(optional)</span>
+              </label>
               <input name="phone_number" type="tel" value={form.phone_number} onChange={handleChange} placeholder="+256 700 000 000" style={inputStyle} />
             </div>
 

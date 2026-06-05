@@ -1,6 +1,7 @@
 import { apiRequest } from "./client";
 
-export interface CreatePropertyPayload {
+export interface Property {
+  id: string;
   title: string;
   description: string;
   location: string;
@@ -8,10 +9,13 @@ export interface CreatePropertyPayload {
   bedrooms?: number;
   bathrooms?: number;
   square_footage?: number;
-  property_type_id: number;
-  transaction_type_id: number;
-  images?: string[];
+  status?: string;
+  property_type_id?: number;
+  transaction_type_id?: number;
+  images: string[];
   amenities?: Record<string, unknown>;
+  created_by?: string;
+  created_at?: string;
 }
 
 export interface PropertyFilters {
@@ -33,9 +37,12 @@ export interface CreatePropertyPayload {
   square_footage?: number;
   property_type_id: number;
   transaction_type_id: number;
+  images?: string[];
+  amenities?: Record<string, unknown>;
 }
 
 export const propertiesApi = {
+  // Public — approved properties only
   getAll: (filters: PropertyFilters = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, val]) => {
@@ -44,6 +51,10 @@ export const propertiesApi = {
     const query = params.toString();
     return apiRequest<Property[]>(`/properties${query ? `?${query}` : ""}`);
   },
+
+  // Dashboard — all properties including pending (agents & admins)
+  getAllForDashboard: (token: string) =>
+    apiRequest<Property[]>(`/properties?all=true`, { token }),
 
   create: (data: CreatePropertyPayload, token: string) =>
     apiRequest<Property>("/properties", { method: "POST", body: data, token }),
