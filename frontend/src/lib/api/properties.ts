@@ -62,6 +62,16 @@ export const propertiesApi = {
   update: (id: string, data: Partial<CreatePropertyPayload>, token: string) =>
     apiRequest<Property>(`/properties/${id}`, { method: "PUT", body: data, token }),
 
+  toggleAvailability: (id: string, availability: "available" | "taken", token: string) =>
+    apiRequest<Property>(`/properties/${id}/availability`, {
+      method: "PUT",
+      body: { availability },
+      token,
+    }),
+
   delete: (id: string, token: string) =>
-    apiRequest<{ message: string }>(`/properties/${id}`, { method: "DELETE", token }),
+    apiRequest<{ message: string }>(`/properties/${id}`, {
+      method: "DELETE",
+      token,
+    }),
 };

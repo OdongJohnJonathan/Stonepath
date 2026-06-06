@@ -4,7 +4,9 @@ export { usersApi } from "./users";
 export { savedApi } from "./saved";
 export { enquiriesApi } from "./enquiries";
 export { apiRequest } from "./client";
+export { adminApi } from "./admin";
 
+export type { AdminUser } from "./admin";
 export type { Property, PropertyFilters, CreatePropertyPayload } from "./properties";
 export type { UserProfile, UpdateProfilePayload } from "./users";
 export type { Enquiry, SendEnquiryPayload } from "./enquiries";

@@ -55,4 +55,61 @@ router.post("/", authenticate, validateProperty, createProperty);
 router.put("/:id", authenticate, updateProperty);
 router.delete("/:id", authenticate, deleteProperty);
 
+// Agent/Admin — toggle availability (available / taken)
+router.put("/:id/availability", authenticate, async (req, res) => {
+  try {
+    const { availability } = req.body; // 'available' or 'taken'
+    const allowed = ["available", "taken"];
+    if (!allowed.includes(availability)) {
+      return res.status(400).json({ error: "Invalid availability status" });
+    }
+
+    // Only the owner or admin can update
+    const prop = await pool.query(
+      "SELECT created_by FROM properties WHERE id = $1 AND deleted_at IS NULL",
+      [req.params.id]
+    );
+    if (prop.rows.length === 0) return res.status(404).json({ error: "Property not found" });
+    if (Number(req.user.role) !== 1 && prop.rows[0].created_by !== req.user.id) {
+      return res.status(403).json({ error: "Not authorised" });
+    }
+
+    const result = await pool.query(
+      `UPDATE properties SET amenities = amenities || $1, updated_at = NOW()
+       WHERE id = $2 RETURNING *`,
+      [JSON.stringify({ availability }), req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update availability" });
+  }
+});
+
+// Agent/Admin — delete a property
+router.delete("/:id", authenticate, async (req, res) => {
+  try {
+    // Only the owner or admin can delete
+    const prop = await pool.query(
+      "SELECT created_by FROM properties WHERE id = $1 AND deleted_at IS NULL",
+      [req.params.id]
+    );
+    if (prop.rows.length === 0) return res.status(404).json({ error: "Property not found" });
+    if (Number(req.user.role) !== 1 && prop.rows[0].created_by !== req.user.id) {
+      return res.status(403).json({ error: "Not authorised" });
+    }
+
+    await pool.query(
+      "UPDATE properties SET deleted_at = NOW() WHERE id = $1",
+      [req.params.id]
+    );
+
+    res.json({ message: "Property deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete property" });
+  }
+});
+
 export default router;

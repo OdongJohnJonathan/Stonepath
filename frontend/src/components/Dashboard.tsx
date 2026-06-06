@@ -2,9 +2,10 @@
 
 import { Icons } from '@/components/Icons';
 import { useState } from "react";
-import { Property, apiRequest } from '@/lib/api';
+import { Property, apiRequest, propertiesApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import SubmitPropertyForm from '@/components/SubmitPropertyForm';
+import AdminUsersPanel from '@/components/AdminUsersPanel';
 
 interface DashboardProps {
   properties: Property[];
@@ -53,6 +54,28 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
     }
   };
 
+  const toggleAvailability = async (id: string, availability: "available" | "taken") => {
+    if (!token) return;
+    try {
+      await propertiesApi.toggleAvailability(id, availability, token);
+      onPropertySubmitted();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteProperty = async (id: string) => {
+    if (!token) return;
+    const confirmed = window.confirm("Are you sure you want to delete this property? This cannot be undone.");
+    if (!confirmed) return;
+    try {
+      await propertiesApi.delete(id, token);
+      onPropertySubmitted();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const adminStats = [
     { label: "Total Listings", value: String(properties.length) },
     { label: "Approved", value: String(properties.filter(p => p.status === 'approved').length) },
@@ -94,7 +117,9 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                 {previewProp.status}
               </span>
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>📍 {previewProp.address || previewProp.location}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
+              📍 {previewProp.address || previewProp.location}
+            </p>
             <div style={{ display: 'flex', gap: 24, padding: '16px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', marginBottom: 16, flexWrap: 'wrap' }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>{previewProp.bedrooms ?? '—'}</div>
@@ -115,9 +140,13 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Price</div>
               </div>
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>{previewProp.description}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+              {previewProp.description}
+            </p>
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setPreviewProp(null)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '12px', fontSize: 12, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Close</button>
+              <button onClick={() => setPreviewProp(null)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '12px', fontSize: 12, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                Close
+              </button>
               {isAdmin && previewProp.status === 'pending' && (
                 <button onClick={() => approveProperty(previewProp.id)} style={{ flex: 2, background: '#22c55e', border: 'none', color: 'white', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
                   ✓ Approve Property
@@ -215,32 +244,86 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                   <tbody>
                     {myListings.map(p => (
                       <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+
+                        {/* Property */}
                         <td style={{ padding: '12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <img src={thumbnail(p.images)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} />
                             <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{p.title}</div>
                           </div>
                         </td>
+
+                        {/* Location */}
                         <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{p.location}</td>
+
+                        {/* Price */}
                         <td style={{ padding: '12px', color: 'var(--gold)' }}>{formatPrice(p.amenities)}</td>
+
+                        {/* Beds */}
                         <td style={{ padding: '12px' }}>{p.bedrooms ?? '—'}</td>
+
+                        {/* Status */}
                         <td style={{ padding: '12px' }}>
-                          <span style={{ color: p.status === 'approved' ? '#22c55e' : p.status === 'pending' ? '#f59e0b' : 'var(--text-muted)', textTransform: 'capitalize' }}>
-                            {p.status || 'Unknown'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => setPreviewProp(p)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-                              View
-                            </button>
-                            {isAdmin && p.status === 'pending' && (
-                              <button onClick={() => approveProperty(p.id)} style={{ background: '#22c55e', border: 'none', color: 'white', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-                                Approve
-                              </button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ color: p.status === 'approved' ? '#22c55e' : p.status === 'pending' ? '#f59e0b' : 'var(--text-muted)', textTransform: 'capitalize' }}>
+                              {p.status || 'Unknown'}
+                            </span>
+                            {p.status === 'approved' && (
+                              <span style={{ fontSize: 10, color: (p.amenities?.availability as string) === 'taken' ? '#f87171' : '#22c55e' }}>
+                                {(p.amenities?.availability as string) === 'taken' ? 'Taken' : 'Available'}
+                              </span>
                             )}
                           </div>
                         </td>
+
+                        {/* Actions */}
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+
+                            {/* View */}
+                            <button onClick={() => setPreviewProp(p)}
+                              style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                              View
+                            </button>
+
+                            {/* Approve — admin only */}
+                            {isAdmin && p.status === 'pending' && (
+                              <button onClick={() => approveProperty(p.id)}
+                                style={{ background: '#22c55e', border: 'none', color: 'white', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                                Approve
+                              </button>
+                            )}
+
+                            {/* Availability toggle — owner or admin, approved only */}
+                            {(isAdmin || p.created_by === user?.id) && p.status === 'approved' && (
+                              <button
+                                onClick={() => toggleAvailability(
+                                  p.id,
+                                  (p.amenities?.availability as string) === 'taken' ? 'available' : 'taken'
+                                )}
+                                style={{
+                                  background: (p.amenities?.availability as string) === 'taken' ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+                                  border: 'none',
+                                  color: (p.amenities?.availability as string) === 'taken' ? '#f87171' : '#22c55e',
+                                  padding: '4px 10px', fontSize: 10, cursor: 'pointer',
+                                  fontFamily: "'DM Sans', sans-serif", borderRadius: 2,
+                                }}
+                              >
+                                {(p.amenities?.availability as string) === 'taken' ? 'Mark Available' : 'Mark Taken'}
+                              </button>
+                            )}
+
+                            {/* Delete — owner or admin */}
+                            {(isAdmin || p.created_by === user?.id) && (
+                              <button onClick={() => deleteProperty(p.id)}
+                                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                                Delete
+                              </button>
+                            )}
+
+                          </div>
+                        </td>
+
                       </tr>
                     ))}
                   </tbody>
@@ -248,7 +331,10 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
               </div>
             )}
           </div>
+          
         )}
+        {/* ── USER MANAGEMENT (admin only) ── */}
+        {isAdmin && <AdminUsersPanel />}
 
       </div>
     </div>

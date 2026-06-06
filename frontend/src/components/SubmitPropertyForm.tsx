@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { propertiesApi } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { uploadImage } from "@/lib/uploadImage";
 
 interface Props {
   onSuccess: () => void;
@@ -11,6 +12,7 @@ interface Props {
 
 export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   const { token } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -23,14 +25,48 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     property_type_id: "1",
     transaction_type_id: "1",
     price: "",
-    image_url: "",
   });
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+    setError("");
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file.");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5MB.");
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError("");
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Please drop an image file."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5MB."); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
     setError("");
   };
 
@@ -41,6 +77,15 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     setError("");
 
     try {
+      let imageUrl = "";
+
+      // Upload image to Cloudinary first if one was selected
+      if (imageFile) {
+        setUploading(true);
+        imageUrl = await uploadImage(imageFile);
+        setUploading(false);
+      }
+
       await propertiesApi.create({
         title: form.title,
         description: form.description,
@@ -51,12 +96,13 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
         square_footage: parseInt(form.square_footage) || 0,
         property_type_id: parseInt(form.property_type_id),
         transaction_type_id: parseInt(form.transaction_type_id),
-        images: form.image_url ? [form.image_url] : [],
+        images: imageUrl ? [imageUrl] : [],
         amenities: { price: parseInt(form.price) || 0 },
       }, token);
 
       onSuccess();
     } catch (err: unknown) {
+      setUploading(false);
       setError(err instanceof Error ? err.message : "Failed to submit property.");
     } finally {
       setLoading(false);
@@ -64,50 +110,29 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   };
 
   const inputStyle: React.CSSProperties = {
-    width: "100%",
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    padding: "10px 14px",
-    color: "var(--text)",
-    fontSize: 14,
-    outline: "none",
-    fontFamily: "'DM Sans', sans-serif",
-    borderRadius: 2,
+    width: "100%", background: "var(--surface)",
+    border: "1px solid var(--border)", padding: "10px 14px",
+    color: "var(--text)", fontSize: 14, outline: "none",
+    fontFamily: "'DM Sans', sans-serif", borderRadius: 2,
     boxSizing: "border-box",
   };
 
   const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 11,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    color: "var(--text-muted)",
-    marginBottom: 6,
+    display: "block", fontSize: 11, letterSpacing: "0.1em",
+    textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6,
   };
 
+  const isSubmitting = loading || uploading;
+
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 200,
-      background: "rgba(0,0,0,0.7)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 24, backdropFilter: "blur(4px)",
-    }}>
-      <div className="modal-card" style={{
-        background: "var(--card-bg)",
-        border: "1px solid var(--border)",
-        padding: "40px 36px",
-        width: "100%", maxWidth: 600,
-        maxHeight: "90vh", overflowY: "auto",
-      }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(4px)" }}>
+      <div className="modal-card" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", padding: "40px 36px", width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }}>
+
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
           <div>
-            <p style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 6 }}>
-              New Listing
-            </p>
-            <h2 className="font-serif" style={{ fontSize: 28, fontWeight: 300, color: "var(--text)" }}>
-              Submit a Property
-            </h2>
+            <p style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 6 }}>New Listing</p>
+            <h2 className="font-serif" style={{ fontSize: 28, fontWeight: 300, color: "var(--text)" }}>Submit a Property</h2>
           </div>
           <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 20, padding: 4 }}>✕</button>
         </div>
@@ -186,34 +211,72 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             <input name="price" type="number" min="0" value={form.price} onChange={handleChange} required placeholder="e.g. 250000" style={inputStyle} />
           </div>
 
-          {/* Image URL */}
+          {/* Image Upload */}
           <div>
-            <label style={labelStyle}>
-              Image URL{" "}
-              <span style={{ color: "var(--text-muted)", textTransform: "none", fontSize: 11 }}>(paste a direct image link)</span>
-            </label>
-            <input name="image_url" value={form.image_url} onChange={handleChange} placeholder="https://images.unsplash.com/..." style={inputStyle} />
-            {form.image_url && (
-              <img
-                src={form.image_url}
-                alt="preview"
-                onError={e => (e.currentTarget.style.display = 'none')}
-                style={{ marginTop: 8, width: "100%", height: 120, objectFit: "cover", borderRadius: 2 }}
-              />
-            )}
+            <label style={labelStyle}>Property Image</label>
+
+            {/* Drop zone */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={e => e.preventDefault()}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: `2px dashed ${imagePreview ? 'var(--gold)' : 'var(--border)'}`,
+                borderRadius: 2, padding: 24, textAlign: "center",
+                cursor: "pointer", transition: "border-color 0.2s ease",
+                background: "var(--surface)", position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="preview" style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 2 }} />
+                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--gold)" }}>
+                    ✓ {imageFile?.name} — click to change
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
+                  <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 4 }}>
+                    Drop an image here or click to browse
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    JPG, PNG, WEBP — max 5MB
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
           </div>
 
+          {/* Upload status */}
+          {uploading && (
+            <div style={{ textAlign: "center", color: "var(--gold)", fontSize: 13 }}>
+              ⏳ Uploading image to Cloudinary...
+            </div>
+          )}
+
           {/* Buttons */}
-          <div className="modal-grid-2" style={{ display: "flex", gap: 12, marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
             <button type="button" onClick={onCancel}
               style={{ flex: 1, background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "12px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
               Cancel
             </button>
-            <button type="submit" disabled={loading}
-              style={{ flex: 2, background: loading ? "rgba(201,168,76,0.5)" : "var(--gold)", border: "none", color: "#0a0a0b", padding: "12px", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-              {loading ? "Submitting..." : "Submit Property"}
+            <button type="submit" disabled={isSubmitting}
+              style={{ flex: 2, background: isSubmitting ? "rgba(201,168,76,0.5)" : "var(--gold)", border: "none", color: "#0a0a0b", padding: "12px", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              {uploading ? "Uploading Image..." : loading ? "Submitting..." : "Submit Property"}
             </button>
           </div>
+
         </form>
       </div>
     </div>

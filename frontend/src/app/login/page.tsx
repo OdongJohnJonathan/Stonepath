@@ -79,6 +79,11 @@ export default function LoginPage() {
               style={{ width: "100%", background: loading ? "rgba(201,168,76,0.5)" : "#c9a84c", border: "none", color: "#0a0a0b", padding: "14px", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", marginTop: 8, fontFamily: "'DM Sans', sans-serif" }}>
               {loading ? "Signing In..." : "Sign In"}
             </button>
+            <div style={{ textAlign: "right", marginTop: -12 }}>
+            <Link href="/forgot-password" style={{ fontSize: 12, color: "#c9a84c", textDecoration: "none" }}>
+              Forgot password?
+            </Link>
+</div>
           </form>
 
           <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "28px 0" }}>
