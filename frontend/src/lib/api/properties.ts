@@ -14,6 +14,10 @@ export interface Property {
   transaction_type_id?: number;
   images: string[];
   amenities?: Record<string, unknown>;
+  currency?: string;
+  mortgage_available?: boolean;
+  mortgage_rate?: number;
+  mortgage_term?: number;
   created_by?: string;
   created_at?: string;
 }
@@ -39,6 +43,10 @@ export interface CreatePropertyPayload {
   transaction_type_id: number;
   images?: string[];
   amenities?: Record<string, unknown>;
+  currency?: string;
+  mortgage_available?: boolean;
+  mortgage_rate?: number;
+  mortgage_term?: number;
 }
 
 export const propertiesApi = {

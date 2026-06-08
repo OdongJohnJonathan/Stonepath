@@ -74,6 +74,12 @@ router.post('/login', async (req, res) => {
     }
 
     const user = result.rows[0];
+
+    // Block deactivated accounts
+    if (user.is_active === false) {
+      return res.status(403).json({ error: 'Your account has been deactivated. Please contact support.' });
+    }
+
     const isMatch = await comparePassword(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ error: 'Incorrect password' });
@@ -83,11 +89,6 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
-  }
-
-  // Block deactivated accounts
-  if (user.is_active === false) {
-    return res.status(403).json({ error: "Your account has been deactivated. Please contact support." });
   }
 });
 

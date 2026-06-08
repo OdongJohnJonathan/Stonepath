@@ -47,7 +47,8 @@ export const createProperty = async (req, res) => {
       title, description, location, address,
       bedrooms, bathrooms, square_footage,
       property_type_id, transaction_type_id,
-      images, amenities
+      images, amenities, currency,
+      mortgage_available, mortgage_rate, mortgage_term
     } = req.body;
 
     const created_by = req.user?.id;
@@ -56,16 +57,21 @@ export const createProperty = async (req, res) => {
       `INSERT INTO properties
       (title, description, location, address, bedrooms, bathrooms, square_footage,
        property_type_id, transaction_type_id, created_by, images, amenities,
+       currency, mortgage_available, mortgage_rate, mortgage_term,
        status, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending',NOW(),NOW())
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'pending',NOW(),NOW())
       RETURNING *`,
       [
         title, description, location, address,
-        bedrooms, bathrooms, square_footage,
+        bedrooms || null, bathrooms || null, square_footage || null,
         property_type_id, transaction_type_id,
         created_by,
-        images || [],           // text[] — pass array directly, NOT JSON.stringify
-        amenities || {}         // jsonb — pass object directly, NOT JSON.stringify
+        images || [],
+        amenities || {},
+        currency || 'UGX',
+        mortgage_available || false,
+        mortgage_rate || null,
+        mortgage_term || null,
       ]
     );
 

@@ -6,6 +6,8 @@ import { Property, apiRequest, propertiesApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import SubmitPropertyForm from '@/components/SubmitPropertyForm';
 import AdminUsersPanel from '@/components/AdminUsersPanel';
+import EnquiriesPanel from '@/components/EnquiriesPanel';
+import MyEnquiriesPanel from '@/components/MyEnquiriesPanel';
 
 interface DashboardProps {
   properties: Property[];
@@ -204,12 +206,19 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
                 {savedProps.map(p => (
-                  <div key={p.id} style={{ display: 'flex', gap: 12, padding: 12, border: '1px solid var(--border)', borderRadius: 2 }}>
+                  <div
+                    key={p.id}
+                    onClick={() => setPreviewProp(p)}
+                    style={{ display: 'flex', gap: 12, padding: 12, border: '1px solid var(--border)', borderRadius: 2, cursor: 'pointer', transition: 'border-color 0.2s', }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                  >
                     <img src={thumbnail(p.images)} alt="" style={{ width: 64, height: 64, objectFit: 'cover', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{p.location}</div>
                       <div style={{ color: 'var(--gold)', fontWeight: 600, fontSize: 14, marginTop: 4 }}>{formatPrice(p.amenities)}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Click to view details →</div>
                     </div>
                   </div>
                 ))}
@@ -245,7 +254,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                     {myListings.map(p => (
                       <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
 
-                        {/* Property */}
                         <td style={{ padding: '12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <img src={thumbnail(p.images)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} />
@@ -253,16 +261,10 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                           </div>
                         </td>
 
-                        {/* Location */}
                         <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{p.location}</td>
-
-                        {/* Price */}
                         <td style={{ padding: '12px', color: 'var(--gold)' }}>{formatPrice(p.amenities)}</td>
-
-                        {/* Beds */}
                         <td style={{ padding: '12px' }}>{p.bedrooms ?? '—'}</td>
 
-                        {/* Status */}
                         <td style={{ padding: '12px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <span style={{ color: p.status === 'approved' ? '#22c55e' : p.status === 'pending' ? '#f59e0b' : 'var(--text-muted)', textTransform: 'capitalize' }}>
@@ -276,17 +278,14 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                           </div>
                         </td>
 
-                        {/* Actions */}
                         <td style={{ padding: '12px' }}>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
 
-                            {/* View */}
                             <button onClick={() => setPreviewProp(p)}
                               style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
                               View
                             </button>
 
-                            {/* Approve — admin only */}
                             {isAdmin && p.status === 'pending' && (
                               <button onClick={() => approveProperty(p.id)}
                                 style={{ background: '#22c55e', border: 'none', color: 'white', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
@@ -294,7 +293,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                               </button>
                             )}
 
-                            {/* Availability toggle — owner or admin, approved only */}
                             {(isAdmin || p.created_by === user?.id) && p.status === 'approved' && (
                               <button
                                 onClick={() => toggleAvailability(
@@ -307,13 +305,11 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                                   color: (p.amenities?.availability as string) === 'taken' ? '#f87171' : '#22c55e',
                                   padding: '4px 10px', fontSize: 10, cursor: 'pointer',
                                   fontFamily: "'DM Sans', sans-serif", borderRadius: 2,
-                                }}
-                              >
+                                }}>
                                 {(p.amenities?.availability as string) === 'taken' ? 'Mark Available' : 'Mark Taken'}
                               </button>
                             )}
 
-                            {/* Delete — owner or admin */}
                             {(isAdmin || p.created_by === user?.id) && (
                               <button onClick={() => deleteProperty(p.id)}
                                 style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
@@ -331,9 +327,16 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
               </div>
             )}
           </div>
-          
         )}
-        {/* ── USER MANAGEMENT (admin only) ── */}
+
+        {/* ── ENQUIRIES — agent sees incoming ── */}
+        {isAgent && <EnquiriesPanel />}
+
+        {/* ── MY ENQUIRIES — buyer sees sent enquiries ── */}
+        {isBuyer && <MyEnquiriesPanel />}
+
+        {/* ── ADMIN: enquiries + user management ── */}
+        {isAdmin && <EnquiriesPanel />}
         {isAdmin && <AdminUsersPanel />}
 
       </div>

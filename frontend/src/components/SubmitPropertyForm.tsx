@@ -10,6 +10,25 @@ interface Props {
   onCancel: () => void;
 }
 
+// Currency by country keyword
+const getCurrency = (location: string) => {
+  const loc = location.toLowerCase();
+  if (loc.includes('kenya') || loc.includes('nairobi') || loc.includes('mombasa')) return 'KES';
+  if (loc.includes('tanzania') || loc.includes('dar es salaam') || loc.includes('arusha')) return 'TZS';
+  return 'UGX'; // default Uganda
+};
+
+const currencySymbols: Record<string, string> = {
+  UGX: 'UGX',
+  KES: 'KES',
+  TZS: 'TZS',
+};
+
+// Property type IDs
+const RESIDENTIAL = 1;
+const COMMERCIAL = 2;
+const LAND = 3;
+
 export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   const { token } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,49 +44,78 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     property_type_id: "1",
     transaction_type_id: "1",
     price: "",
+    mortgage_available: false,
+    mortgage_rate: "",
+    mortgage_term: "20",
+    zoning: "",
+    floors: "",
+    office_units: "",
   });
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
+  const [amenities, setAmenities] = useState({
+    parking: false,
+    garage: false,
+    gated: false,
+    generator: false,
+    solar: false,
+    borehole: false,
+    security: false,
+    furnished: false,
+    swimming_pool: false,
+    internet: false,
+    cctv: false,
+    elevator: false,
+  });
+
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const propertyType = parseInt(form.property_type_id);
+  const isResidential = propertyType === RESIDENTIAL;
+  const isCommercial = propertyType === COMMERCIAL;
+  const isLand = propertyType === LAND;
+  const currency = getCurrency(form.location);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setForm(f => ({ ...f, [name]: checked }));
+    } else {
+      setForm(f => ({ ...f, [name]: value }));
+    }
     setError("");
   };
 
+  const toggleAmenity = (key: string) => {
+    setAmenities(a => ({ ...a, [key]: !a[key as keyof typeof a] }));
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    addFiles(files);
+  };
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      setError("Please select an image file.");
-      return;
-    }
+  const addFiles = (files: File[]) => {
+    const valid = files.filter(f => f.type.startsWith('image/') && f.size <= 5 * 1024 * 1024);
+    if (valid.length !== files.length) setError("Some files were skipped (must be images under 5MB)");
+    const combined = [...imageFiles, ...valid].slice(0, 10); // max 10
+    setImageFiles(combined);
+    setImagePreviews(combined.map(f => URL.createObjectURL(f)));
+  };
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image must be under 5MB.");
-      return;
-    }
-
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-    setError("");
+  const removeImage = (index: number) => {
+    const newFiles = imageFiles.filter((_, i) => i !== index);
+    setImageFiles(newFiles);
+    setImagePreviews(newFiles.map(f => URL.createObjectURL(f)));
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { setError("Please drop an image file."); return; }
-    if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5MB."); return; }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-    setError("");
+    addFiles(Array.from(e.dataTransfer.files));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,13 +125,26 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     setError("");
 
     try {
-      let imageUrl = "";
+      let imageUrls: string[] = [];
 
-      // Upload image to Cloudinary first if one was selected
-      if (imageFile) {
+      if (imageFiles.length > 0) {
         setUploading(true);
-        imageUrl = await uploadImage(imageFile);
+        imageUrls = await Promise.all(imageFiles.map(f => uploadImage(f)));
         setUploading(false);
+      }
+
+      const amenitiesData: Record<string, unknown> = {
+        price: parseInt(form.price) || 0,
+        ...amenities,
+      };
+
+      if (isCommercial) {
+        amenitiesData.floors = parseInt(form.floors) || 0;
+        amenitiesData.office_units = parseInt(form.office_units) || 0;
+      }
+
+      if (isLand) {
+        amenitiesData.zoning = form.zoning;
       }
 
       await propertiesApi.create({
@@ -91,13 +152,17 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
         description: form.description,
         location: form.location,
         address: form.address,
-        bedrooms: parseInt(form.bedrooms) || 0,
-        bathrooms: parseInt(form.bathrooms) || 0,
+        bedrooms: isResidential ? parseInt(form.bedrooms) || 0 : undefined,
+        bathrooms: isResidential || isCommercial ? parseInt(form.bathrooms) || 0 : undefined,
         square_footage: parseInt(form.square_footage) || 0,
-        property_type_id: parseInt(form.property_type_id),
+        property_type_id: propertyType,
         transaction_type_id: parseInt(form.transaction_type_id),
-        images: imageUrl ? [imageUrl] : [],
-        amenities: { price: parseInt(form.price) || 0 },
+        images: imageUrls,
+        amenities: amenitiesData,
+        currency,
+        mortgage_available: form.mortgage_available,
+        mortgage_rate: form.mortgage_available ? parseFloat(form.mortgage_rate) || 0 : undefined,
+        mortgage_term: form.mortgage_available ? parseInt(form.mortgage_term) || 20 : undefined,
       }, token);
 
       onSuccess();
@@ -122,11 +187,39 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6,
   };
 
+  const sectionTitle = (title: string) => (
+    <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12, marginTop: 4, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+      {title}
+    </div>
+  );
+
+  const amenityList = [
+    { key: 'parking', label: '🚗 Parking' },
+    { key: 'garage', label: '🏠 Garage' },
+    { key: 'gated', label: '🔒 Gated Community' },
+    { key: 'generator', label: '⚡ Generator' },
+    { key: 'solar', label: '☀️ Solar Power' },
+    { key: 'borehole', label: '💧 Borehole' },
+    { key: 'security', label: '👮 Security Guard' },
+    { key: 'swimming_pool', label: '🏊 Swimming Pool' },
+    { key: 'furnished', label: '🛋️ Furnished' },
+    { key: 'internet', label: '📶 Internet/Fibre' },
+    { key: 'cctv', label: '📹 CCTV' },
+    { key: 'elevator', label: '🛗 Elevator' },
+  ];
+
+  // Filter amenities by property type
+  const relevantAmenities = isLand
+    ? amenityList.filter(a => ['borehole', 'gated', 'security'].includes(a.key))
+    : isCommercial
+    ? amenityList.filter(a => !['furnished', 'swimming_pool'].includes(a.key))
+    : amenityList;
+
   const isSubmitting = loading || uploading;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(4px)" }}>
-      <div className="modal-card" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", padding: "40px 36px", width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }}>
+      <div className="modal-card" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", padding: "40px 36px", width: "100%", maxWidth: 640, maxHeight: "92vh", overflowY: "auto" }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
@@ -145,45 +238,17 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
-          {/* Title */}
+          {/* ── BASIC INFO ── */}
+          {sectionTitle('Basic Information')}
+
           <div>
             <label style={labelStyle}>Property Title *</label>
             <input name="title" value={form.title} onChange={handleChange} required placeholder="e.g. Modern Villa in Kololo" style={inputStyle} />
           </div>
 
-          {/* Description */}
           <div>
             <label style={labelStyle}>Description *</label>
-            <textarea name="description" value={form.description} onChange={handleChange} required placeholder="Describe the property..." rows={3}
-              style={{ ...inputStyle, resize: "vertical" }} />
-          </div>
-
-          {/* Location + Address */}
-          <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div>
-              <label style={labelStyle}>City / Area *</label>
-              <input name="location" value={form.location} onChange={handleChange} required placeholder="e.g. Kampala" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Full Address</label>
-              <input name="address" value={form.address} onChange={handleChange} placeholder="e.g. Plot 12, Kololo Hill" style={inputStyle} />
-            </div>
-          </div>
-
-          {/* Bedrooms + Bathrooms + Sqft */}
-          <div className="modal-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-            <div>
-              <label style={labelStyle}>Bedrooms *</label>
-              <input name="bedrooms" type="number" min="0" value={form.bedrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Bathrooms *</label>
-              <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Size (sqft)</label>
-              <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} placeholder="0" style={inputStyle} />
-            </div>
+            <textarea name="description" value={form.description} onChange={handleChange} required placeholder="Describe the property..." rows={3} style={{ ...inputStyle, resize: "vertical" }} />
           </div>
 
           {/* Property Type + Transaction Type */}
@@ -205,63 +270,187 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </div>
           </div>
 
-          {/* Price */}
-          <div>
-            <label style={labelStyle}>Price (USD) *</label>
-            <input name="price" type="number" min="0" value={form.price} onChange={handleChange} required placeholder="e.g. 250000" style={inputStyle} />
+          {/* ── LOCATION ── */}
+          {sectionTitle('Location')}
+
+          <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <label style={labelStyle}>City / Area *</label>
+              <input name="location" value={form.location} onChange={handleChange} required placeholder="e.g. Kampala, Uganda" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Full Address</label>
+              <input name="address" value={form.address} onChange={handleChange} placeholder="e.g. Plot 12, Kololo Hill" style={inputStyle} />
+            </div>
           </div>
 
-          {/* Image Upload */}
-          <div>
-            <label style={labelStyle}>Property Image</label>
+          {/* Show detected currency */}
+          {form.location && (
+            <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: -8 }}>
+              💰 Currency auto-detected: <strong>{currency}</strong> based on location
+            </div>
+          )}
 
-            {/* Drop zone */}
-            <div
-              onDrop={handleDrop}
-              onDragOver={e => e.preventDefault()}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: `2px dashed ${imagePreview ? 'var(--gold)' : 'var(--border)'}`,
-                borderRadius: 2, padding: 24, textAlign: "center",
-                cursor: "pointer", transition: "border-color 0.2s ease",
-                background: "var(--surface)", position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              {imagePreview ? (
-                <>
-                  <img src={imagePreview} alt="preview" style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 2 }} />
-                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--gold)" }}>
-                    ✓ {imageFile?.name} — click to change
+          {/* ── PROPERTY DETAILS — varies by type ── */}
+          {sectionTitle('Property Details')}
+
+          {/* Residential fields */}
+          {isResidential && (
+            <div className="modal-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Bedrooms *</label>
+                <input name="bedrooms" type="number" min="0" value={form.bedrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Bathrooms *</label>
+                <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Size (sqft)</label>
+                <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} placeholder="0" style={inputStyle} />
+              </div>
+            </div>
+          )}
+
+          {/* Commercial fields */}
+          {isCommercial && (
+            <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Total Area (sqft) *</label>
+                <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} required placeholder="0" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Number of Floors</label>
+                <input name="floors" type="number" min="1" value={form.floors} onChange={handleChange} placeholder="1" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Office / Shop Units</label>
+                <input name="office_units" type="number" min="0" value={form.office_units} onChange={handleChange} placeholder="0" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Bathrooms</label>
+                <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} placeholder="0" style={inputStyle} />
+              </div>
+            </div>
+          )}
+
+          {/* Land fields */}
+          {isLand && (
+            <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Size (sqft or acres) *</label>
+                <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} required placeholder="0" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Zoning / Land Use</label>
+                <select name="zoning" value={form.zoning} onChange={handleChange} style={inputStyle}>
+                  <option value="">Select zoning</option>
+                  <option value="residential">Residential</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="agricultural">Agricultural</option>
+                  <option value="industrial">Industrial</option>
+                  <option value="mixed">Mixed Use</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* ── PRICING ── */}
+          {sectionTitle('Pricing')}
+
+          <div>
+            <label style={labelStyle}>
+              Price ({currency}) *
+            </label>
+            <input name="price" type="number" min="0" value={form.price} onChange={handleChange} required
+              placeholder={currency === 'UGX' ? 'e.g. 450,000,000' : currency === 'KES' ? 'e.g. 15,000,000' : 'e.g. 250,000,000'}
+              style={inputStyle} />
+          </div>
+
+          {/* Mortgage — only for residential for sale */}
+          {isResidential && form.transaction_type_id === '1' && (
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
+                <input type="checkbox" name="mortgage_available" checked={form.mortgage_available} onChange={handleChange}
+                  style={{ width: 16, height: 16, accentColor: 'var(--gold)' }} />
+                Enable mortgage calculator for this property
+              </label>
+
+              {form.mortgage_available && (
+                <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
+                  <div>
+                    <label style={labelStyle}>Interest Rate (%)</label>
+                    <input name="mortgage_rate" type="number" min="1" max="30" step="0.5" value={form.mortgage_rate} onChange={handleChange}
+                      placeholder="e.g. 18" style={inputStyle} />
                   </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
-                  <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 4 }}>
-                    Drop an image here or click to browse
+                  <div>
+                    <label style={labelStyle}>Loan Term (years)</label>
+                    <select name="mortgage_term" value={form.mortgage_term} onChange={handleChange} style={inputStyle}>
+                      <option value="5">5 years</option>
+                      <option value="10">10 years</option>
+                      <option value="15">15 years</option>
+                      <option value="20">20 years</option>
+                      <option value="25">25 years</option>
+                      <option value="30">30 years</option>
+                    </select>
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    JPG, PNG, WEBP — max 5MB
-                  </div>
-                </>
+                </div>
               )}
             </div>
+          )}
 
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: "none" }}
-            />
+          {/* ── AMENITIES ── */}
+          {sectionTitle('Amenities & Features')}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+            {relevantAmenities.map(({ key, label }) => (
+              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 10px', border: `1px solid ${amenities[key as keyof typeof amenities] ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 2, background: amenities[key as keyof typeof amenities] ? 'rgba(201,168,76,0.08)' : 'transparent', transition: 'all 0.15s ease', fontSize: 13, color: 'var(--text)' }}>
+                <input type="checkbox" checked={amenities[key as keyof typeof amenities]} onChange={() => toggleAmenity(key)}
+                  style={{ width: 14, height: 14, accentColor: 'var(--gold)' }} />
+                {label}
+              </label>
+            ))}
           </div>
 
-          {/* Upload status */}
+          {/* ── IMAGES ── */}
+          {sectionTitle(`Images (${imageFiles.length}/10)`)}
+
+          <div
+            onDrop={handleDrop}
+            onDragOver={e => e.preventDefault()}
+            onClick={() => fileInputRef.current?.click()}
+            style={{ border: '2px dashed var(--border)', borderRadius: 2, padding: 20, textAlign: "center", cursor: "pointer", background: "var(--surface)" }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 6 }}>📷</div>
+            <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 4 }}>Drop images here or click to browse</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>JPG, PNG, WEBP — max 5MB each, up to 10 images</div>
+          </div>
+
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} style={{ display: "none" }} />
+
+          {/* Image previews */}
+          {imagePreviews.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
+              {imagePreviews.map((src, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img src={src} alt="" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 2 }} />
+                  {i === 0 && (
+                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'var(--gold)', color: '#000', fontSize: 9, padding: '2px 5px', borderRadius: 2, fontWeight: 600 }}>
+                      COVER
+                    </div>
+                  )}
+                  <button type="button" onClick={() => removeImage(i)}
+                    style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: 'white', width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {uploading && (
             <div style={{ textAlign: "center", color: "var(--gold)", fontSize: 13 }}>
-              ⏳ Uploading image to Cloudinary...
+              ⏳ Uploading {imageFiles.length} image{imageFiles.length > 1 ? 's' : ''} to Cloudinary...
             </div>
           )}
 
@@ -273,7 +462,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </button>
             <button type="submit" disabled={isSubmitting}
               style={{ flex: 2, background: isSubmitting ? "rgba(201,168,76,0.5)" : "var(--gold)", border: "none", color: "#0a0a0b", padding: "12px", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-              {uploading ? "Uploading Image..." : loading ? "Submitting..." : "Submit Property"}
+              {uploading ? `Uploading ${imageFiles.length} image${imageFiles.length > 1 ? 's' : ''}...` : loading ? "Submitting..." : "Submit Property"}
             </button>
           </div>
 

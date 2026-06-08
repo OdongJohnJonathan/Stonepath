@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { adminApi, AdminUser } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -16,7 +16,7 @@ export default function AdminUsersPanel() {
     3: "Buyer",
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!token) return;
     try {
       const data = await adminApi.getUsers(token);
@@ -27,13 +27,16 @@ export default function AdminUsersPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
-  useEffect(() => { fetchUsers(); }, [token]);
+ useEffect(() => {
+  const load = async () => { await fetchUsers(); };
+  load();
+}, [fetchUsers]);
 
   const handleChangeRole = async (id: string, currentRole: number) => {
     if (!token) return;
-    const newRole = currentRole === 2 ? 3 : 2; // toggle between agent and buyer
+    const newRole = currentRole === 2 ? 3 : 2;
     try {
       await adminApi.changeRole(id, newRole, token);
       fetchUsers();
@@ -92,17 +95,14 @@ export default function AdminUsersPanel() {
             {users.map(u => (
               <tr key={u.id} style={{ borderBottom: '1px solid var(--border)', opacity: u.is_active ? 1 : 0.5 }}>
 
-                {/* Name */}
                 <td style={{ padding: '12px', fontWeight: 500 }}>
                   {u.first_name} {u.last_name}
                 </td>
 
-                {/* Email */}
                 <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 12 }}>
                   {u.email}
                 </td>
 
-                {/* Role */}
                 <td style={{ padding: '12px' }}>
                   <span style={{
                     padding: '2px 8px', borderRadius: 2, fontSize: 11,
@@ -113,30 +113,25 @@ export default function AdminUsersPanel() {
                   </span>
                 </td>
 
-                {/* Verified */}
                 <td style={{ padding: '12px' }}>
                   <span style={{ color: u.is_verified ? '#22c55e' : '#f59e0b', fontSize: 12 }}>
                     {u.is_verified ? '✓ Verified' : '✗ Unverified'}
                   </span>
                 </td>
 
-                {/* Active status */}
                 <td style={{ padding: '12px' }}>
                   <span style={{ color: u.is_active ? '#22c55e' : '#f87171', fontSize: 12 }}>
                     {u.is_active ? 'Active' : 'Banned'}
                   </span>
                 </td>
 
-                {/* Joined */}
                 <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 12 }}>
                   {new Date(u.created_at).toLocaleDateString()}
                 </td>
 
-                {/* Actions */}
                 <td style={{ padding: '12px' }}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
 
-                    {/* Verify — only if not yet verified */}
                     {!u.is_verified && (
                       <button onClick={() => handleVerify(u.id)}
                         style={{ background: 'rgba(34,197,94,0.15)', border: 'none', color: '#22c55e', padding: '4px 8px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
@@ -144,7 +139,6 @@ export default function AdminUsersPanel() {
                       </button>
                     )}
 
-                    {/* Change role — only for non-admins */}
                     {u.role !== 1 && (
                       <button onClick={() => handleChangeRole(u.id, u.role)}
                         style={{ background: 'rgba(59,130,246,0.15)', border: 'none', color: '#60a5fa', padding: '4px 8px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
@@ -152,7 +146,6 @@ export default function AdminUsersPanel() {
                       </button>
                     )}
 
-                    {/* Ban/Unban — only for non-admins */}
                     {u.role !== 1 && (
                       <button onClick={() => handleToggleActive(u.id)}
                         style={{
