@@ -96,6 +96,42 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
 
   const stats = isAdmin ? adminStats : isAgent ? agentStats : buyerStats;
 
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradePlan, setUpgradePlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [upgradePhone, setUpgradePhone] = useState('');
+  const [upgradeProvider, setUpgradeProvider] = useState('mtn');
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState('');
+  const [upgradeSuccess, setUpgradeSuccess] = useState(false);
+
+  const handleUpgrade = (plan: 'monthly' | 'yearly') => {
+    setUpgradePlan(plan);
+    setShowUpgradeModal(true);
+  };
+
+  const submitUpgrade = async () => {
+    if (!token || !upgradePhone) return;
+    setUpgradeLoading(true);
+    setUpgradeError('');
+    try {
+      const res = await apiRequest<{ message: string }>('/payments/premium', {
+        method: 'POST',
+        body: { plan: upgradePlan, phone_number: upgradePhone, provider: upgradeProvider },
+        token,
+      });
+      setUpgradeSuccess(true);
+      setTimeout(() => {
+        setShowUpgradeModal(false);
+        setUpgradeSuccess(false);
+        onPropertySubmitted(); // refresh
+      }, 2000);
+    } catch (err: unknown) {
+      setUpgradeError(err instanceof Error ? err.message : 'Payment failed');
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
+
   return (
     <div className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 120px' }}>
 
@@ -227,6 +263,46 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
           </div>
         )}
 
+        {/* Free listing limit warning */}
+        {isAgent && (() => {
+          const activeCount = myListings.filter(p => !p.status?.includes('deleted')).length;
+          const atLimit = activeCount >= 3;
+          if (activeCount >= 2) {
+            return (
+              <div style={{ background: atLimit ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${atLimit ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`, padding: '20px', borderRadius: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+                  <div>
+                    <div style={{ color: atLimit ? '#f87171' : '#f59e0b', fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
+                      {atLimit ? '🚫 Free listing limit reached' : '⚠️ Approaching your free limit'}
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 4 }}>
+                      {atLimit
+                        ? 'You have used all 3 free listings. Upgrade to premium for unlimited listings.'
+                        : `You have used ${activeCount} of 3 free listings.`}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      Premium: <span style={{ color: '#a855f7' }}>UGX 50,000/month</span> · <span style={{ color: '#a855f7' }}>UGX 480,000/year</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => handleUpgrade('monthly')}
+                      style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', color: '#a855f7', padding: '8px 16px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2, letterSpacing: '0.05em' }}>
+                      ⭐ Monthly — UGX 50k
+                    </button>
+                    <button
+                      onClick={() => handleUpgrade('yearly')}
+                      style={{ background: '#a855f7', border: 'none', color: 'white', padding: '8px 16px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2, letterSpacing: '0.05em' }}>
+                      ⭐ Yearly — UGX 480k
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* ── LISTINGS TABLE (agents + admins) ── */}
         {(isAgent || isAdmin) && (
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 24 }}>
@@ -326,6 +402,95 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Upgrade Modal */}
+        {showUpgradeModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', width: '100%', maxWidth: 440, padding: 32 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <h3 className="font-serif" style={{ fontSize: 24, fontWeight: 300 }}>Upgrade to Premium</h3>
+                <button onClick={() => setShowUpgradeModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+
+              {upgradeSuccess ? (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                  <div style={{ color: '#22c55e', fontSize: 16, fontWeight: 500 }}>Premium Activated!</div>
+                </div>
+              ) : (
+                <>
+                  {/* Plan summary */}
+                  <div style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', padding: 16, marginBottom: 20, borderRadius: 2 }}>
+                    <div style={{ color: '#a855f7', fontWeight: 600, marginBottom: 4 }}>
+                      {upgradePlan === 'yearly' ? '⭐ Yearly Plan' : '⭐ Monthly Plan'}
+                    </div>
+                    <div style={{ fontSize: 24, color: 'var(--text)', fontFamily: 'Cormorant Garamond, serif' }}>
+                      UGX {upgradePlan === 'yearly' ? '480,000' : '50,000'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                      Unlimited property listings · Verified agent badge eligibility
+                    </div>
+                  </div>
+
+                  {upgradeError && (
+                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '10px 14px', fontSize: 13, marginBottom: 16 }}>
+                      {upgradeError}
+                    </div>
+                  )}
+
+                  {/* Phone number */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+                      Mobile Money Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={upgradePhone}
+                      onChange={e => setUpgradePhone(e.target.value)}
+                      placeholder="+256 700 000 000"
+                      style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '10px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* Provider */}
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+                      Payment Provider
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                      {[
+                        { id: 'mtn', label: 'MTN MoMo', color: '#f59e0b' },
+                        { id: 'airtel', label: 'Airtel Money', color: '#ef4444' },
+                        { id: 'mpesa', label: 'M-Pesa', color: '#22c55e' },
+                      ].map(p => (
+                        <div
+                          key={p.id}
+                          onClick={() => setUpgradeProvider(p.id)}
+                          style={{ padding: '10px 8px', textAlign: 'center', border: `1px solid ${upgradeProvider === p.id ? p.color : 'var(--border)'}`, background: upgradeProvider === p.id ? `${p.color}15` : 'transparent', cursor: 'pointer', borderRadius: 2, transition: 'all 0.15s' }}
+                        >
+                          <div style={{ fontSize: 11, fontWeight: 600, color: upgradeProvider === p.id ? p.color : 'var(--text-muted)' }}>
+                            {p.label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={submitUpgrade}
+                    disabled={upgradeLoading || !upgradePhone}
+                    style={{ width: '100%', background: upgradeLoading || !upgradePhone ? 'rgba(168,85,247,0.3)' : '#a855f7', border: 'none', color: 'white', padding: '14px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: upgradeLoading || !upgradePhone ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                    {upgradeLoading ? 'Processing...' : `Pay UGX ${upgradePlan === 'yearly' ? '480,000' : '50,000'}`}
+                  </button>
+
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 12 }}>
+                    In development mode, premium is activated instantly for testing.
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         )}
 

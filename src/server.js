@@ -1,19 +1,48 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { sanitizeInput } from "./middleware/sanitize.js";
+import pool from "./db.js";
+
+// Import routes
 import propertiesRoutes from "./routes/properties.routes.js";
 import authRoutes from "./routes/auth.js";
 import usersRoutes from "./routes/users.routes.js";
 import savedRoutes from "./routes/saved.routes.js";
 import enquiriesRoutes from "./routes/enquiries.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import paymentsRoutes from "./routes/payments.routes.js";
 
-dotenv.config();
-
+// Initialize express app
 const app = express();
+
+// ── DATABASE MAINTENANCE ──────────────────────────
+// Check and expire premium accounts every hour
+const expirePremiumAccounts = async () => {
+  try {
+    const result = await pool.query(
+      `UPDATE users
+       SET is_premium = false
+       WHERE is_premium = true
+       AND premium_expires_at IS NOT NULL
+       AND premium_expires_at < NOW()
+       RETURNING id, email`
+    );
+    if (result.rows.length > 0) {
+      console.log(`⏰ Expired premium for ${result.rows.length} accounts`);
+    }
+  } catch (err) {
+    console.error('Premium expiry check failed:', err.message);
+  }
+};
+
+// Run on startup and every hour
+expirePremiumAccounts();
+setInterval(expirePremiumAccounts, 60 * 60 * 1000);
 
 // ── SECURITY HEADERS ──────────────────────────────
 app.use(helmet({
@@ -62,6 +91,7 @@ app.use("/api", apiLimiter);
 app.use("/auth", authLimiter);
 
 // ── ROUTES ────────────────────────────────────────
+app.use("/payments", paymentsRoutes);
 app.use("/auth", authRoutes);
 app.use("/properties", propertiesRoutes);
 app.use("/users", usersRoutes);

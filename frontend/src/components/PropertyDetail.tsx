@@ -6,11 +6,6 @@ import { Property, enquiriesApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
-interface ChatMessage {
-  role: 'bot' | 'user';
-  text: string;
-}
-
 interface PropertyDetailProps {
   property: Property;
   onBack: () => void;
@@ -25,14 +20,9 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
   const [tour360, setTour360] = useState(false);
   const [tourOffset, setTourOffset] = useState(0);
   const [dragStart, setDragStart] = useState<number | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: 'bot', text: `Welcome! I'm your AI concierge for ${property.title}. Ask me anything about this property.` }
-  ]);
-  const [chatLoading, setChatLoading] = useState(false);
   const [downPayment, setDownPayment] = useState(20);
-  const [loanTerm, setLoanTerm] = useState(30);
-  const [rate, setRate] = useState(6.5);
+  const [loanTerm, setLoanTerm] = useState(property.mortgage_term || 20);
+  const [rate, setRate] = useState(property.mortgage_rate || 18);
 
   // Enquiry state
   const [showEnquiry, setShowEnquiry] = useState(false);
@@ -56,26 +46,12 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
     return Math.round(principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1));
   })();
 
-  const handleChat = async () => {
-    if (!chatInput.trim()) return;
-    const userMsg = chatInput;
-    setChatInput('');
-    setChatMessages(m => [...m, { role: 'user', text: userMsg }]);
-    setChatLoading(true);
-    setTimeout(() => {
-      setChatMessages(m => [...m, { role: 'bot', text: "I'd be happy to arrange a private viewing or provide more details about this property." }]);
-      setChatLoading(false);
-    }, 1500);
-  };
-
   const handleEnquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) { router.push('/login'); return; }
     if (!enquiryMessage.trim()) return;
-
     setEnquiryLoading(true);
     setEnquiryError('');
-
     try {
       await enquiriesApi.send({ property_id: property.id, message: enquiryMessage }, token);
       setEnquirySent(true);
@@ -88,6 +64,21 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
   };
 
   const availability = property.amenities?.availability as string | undefined;
+
+  const amenityTags = [
+    { key: 'parking', label: '🚗 Parking' },
+    { key: 'garage', label: '🏠 Garage' },
+    { key: 'gated', label: '🔒 Gated' },
+    { key: 'generator', label: '⚡ Generator' },
+    { key: 'solar', label: '☀️ Solar' },
+    { key: 'borehole', label: '💧 Borehole' },
+    { key: 'security', label: '👮 Security' },
+    { key: 'swimming_pool', label: '🏊 Pool' },
+    { key: 'furnished', label: '🛋️ Furnished' },
+    { key: 'internet', label: '📶 Internet' },
+    { key: 'cctv', label: '📹 CCTV' },
+    { key: 'elevator', label: '🛗 Elevator' },
+  ];
 
   return (
     <div className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 120px' }}>
@@ -116,7 +107,9 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
                 style={{ cursor: 'grab', height: '100%', overflow: 'hidden', position: 'relative' }}
               >
                 <div style={{ transform: `translateX(${tourOffset}px)`, height: '100%', width: '300%', background: 'linear-gradient(90deg, #1a1a1a, #333, #1a1a1a)' }} />
-                <div style={{ position: 'absolute', top: 16, left: 16, background: 'rgba(0,0,0,0.6)', padding: '6px 12px', color: 'var(--gold)', fontSize: 11 }}>360° TOUR — DRAG TO EXPLORE</div>
+                <div style={{ position: 'absolute', top: 16, left: 16, background: 'rgba(0,0,0,0.6)', padding: '6px 12px', color: 'var(--gold)', fontSize: 11 }}>
+                  360° TOUR — DRAG TO EXPLORE
+                </div>
               </div>
             ) : (
               <img src={galleryImages[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -136,60 +129,88 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
             ))}
           </div>
 
-          {/* Info */}
+          {/* Title + location */}
           <h2 className="font-serif" style={{ fontSize: 36, fontWeight: 300 }}>{property.title}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4, marginBottom: 20 }}>
             📍 {property.address || property.location}
           </p>
 
-          <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', paddingBottom: 20, marginBottom: 20 }}>
-            <span>{property.bedrooms ?? '—'} Beds</span>
-            <span>{property.bathrooms ?? '—'} Baths</span>
-            {property.square_footage && <span>{property.square_footage.toLocaleString()} Sqft</span>}
+          {/* Quick stats row */}
+          <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', paddingBottom: 20, marginBottom: 20, flexWrap: 'wrap' }}>
+            {property.bedrooms !== undefined && property.bedrooms > 0 && (
+              <span>🛏 {property.bedrooms} Beds</span>
+            )}
+            {property.bathrooms !== undefined && property.bathrooms > 0 && (
+              <span>🚿 {property.bathrooms} Baths</span>
+            )}
+            {property.square_footage && (
+              <span>📐 {property.square_footage.toLocaleString()} Sqft</span>
+            )}
           </div>
 
-          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 28 }}>{property.description}</p>
+          {/* Description */}
+          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 28 }}>
+            {property.description}
+          </p>
 
-          {/* AI Chat */}
+          {/* ── PROPERTY HIGHLIGHTS (replaces AI concierge) ── */}
           <div style={{ border: '1px solid var(--border)', borderRadius: 2, marginBottom: 28 }}>
             <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              AI Property Concierge
+              Property Highlights
             </div>
-            <div style={{ padding: 14, background: 'var(--surface)', height: 150, overflowY: 'auto' }}>
-              {chatMessages.map((m, i) => (
-                <div key={i} style={{ textAlign: m.role === 'user' ? 'right' : 'left', margin: '5px 0' }}>
-                  <span style={{ background: m.role === 'user' ? 'var(--gold)' : '#333', color: m.role === 'user' ? '#000' : '#fff', padding: '6px 10px', borderRadius: 4, fontSize: 13, display: 'inline-block', maxWidth: '80%' }}>{m.text}</span>
-                </div>
+            <div style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {amenityTags.filter(a => property.amenities?.[a.key]).map(a => (
+                <span key={a.key} style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2 }}>
+                  {a.label}
+                </span>
               ))}
-              {chatLoading && <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '5px 0' }}>Thinking...</div>}
-            </div>
-            <div style={{ display: 'flex', padding: 10, gap: 8, borderTop: '1px solid var(--border)' }}>
-              <input className="luxe-input" style={{ flex: 1 }} value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleChat()} placeholder="Ask about this property..." />
-              <button onClick={handleChat} className="luxe-btn">Send</button>
+              {/* Commercial extras */}
+              {property.amenities?.floors && (
+                <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2 }}>
+                  🏢 {String(property.amenities.floors)} Floor{Number(property.amenities.floors) > 1 ? 's' : ''}
+                </span>
+              )}
+              {property.amenities?.office_units && (
+                <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2 }}>
+                  🚪 {String(property.amenities.office_units)} Units
+                </span>
+              )}
+              {/* Land extras */}
+              {property.amenities?.zoning && (
+                <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2, textTransform: 'capitalize' }}>
+                  🗺️ {String(property.amenities.zoning)} Zoning
+                </span>
+              )}
+              {/* Empty state */}
+              {!amenityTags.some(a => property.amenities?.[a.key]) && !property.amenities?.floors && !property.amenities?.zoning && (
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                  No highlights listed for this property.
+                </span>
+              )}
             </div>
           </div>
 
         </div>
 
-        {/* Sidebar */}
+        {/* ── SIDEBAR ── */}
         <div className="detail-sidebar" style={{ flex: '0 0 300px' }}>
 
           {/* Price */}
           {price > 0 && (
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {property.transaction_type_id === 2 ? 'Monthly Rent' : 'Asking Price'}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                {property.transaction_type_id === 2 ? 'Monthly Rent' : 'Asking Price'}
+              </div>
+              <div style={{ fontSize: 28, color: 'var(--gold)', fontFamily: 'Cormorant Garamond, serif' }}>
+                {property.currency || 'UGX'} {price.toLocaleString()}
+              </div>
+              {property.transaction_type_id === 2 && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>per month</div>
+              )}
             </div>
-            <div style={{ fontSize: 28, color: 'var(--gold)', fontFamily: 'Cormorant Garamond, serif' }}>
-              {property.currency || 'UGX'} {price.toLocaleString()}
-            </div>
-            {property.transaction_type_id === 2 && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>per month</div>
-            )}
-          </div>
-        )}
+          )}
 
-          {/* Contact Agent / Enquiry Form */}
+          {/* Contact Agent */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
             <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 16 }}>Contact Agent</h3>
 
@@ -223,8 +244,7 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
                 <textarea
                   value={enquiryMessage}
                   onChange={e => setEnquiryMessage(e.target.value)}
-                  required
-                  rows={4}
+                  required rows={4}
                   placeholder={`Hi, I'm interested in ${property.title}. Could you provide more details?`}
                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '10px 12px', fontSize: 13, resize: 'vertical', fontFamily: "'DM Sans', sans-serif", outline: 'none' }}
                 />
@@ -247,7 +267,6 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
             )}
           </div>
 
-          {/* Mortgage Calculator */}
           {/* Mortgage Calculator — only if agent enabled it */}
           {property.mortgage_available && price > 0 && (
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
@@ -259,20 +278,22 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
                   {property.currency || 'UGX'} {monthlyPayment.toLocaleString()}/mo
                 </div>
               )}
-              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Down Payment: {downPayment}%</label>
-              <input type="range" min="5" max="50" step="5" value={downPayment} onChange={e => setDownPayment(Number(e.target.value))} style={{ width: '100%', marginBottom: 12 }} />
               <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Interest Rate: {property.mortgage_rate || rate}%
+                Down Payment: {downPayment}%
               </label>
-              <input type="range" min="3" max="30" step="0.5"
-                value={property.mortgage_rate || rate}
+              <input type="range" min="5" max="50" step="5" value={downPayment}
+                onChange={e => setDownPayment(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: 12 }} />
+              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Interest Rate: {rate}%
+              </label>
+              <input type="range" min="3" max="30" step="0.5" value={rate}
                 onChange={e => setRate(Number(e.target.value))}
                 style={{ width: '100%', marginBottom: 12 }} />
               <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Loan Term: {property.mortgage_term || loanTerm} years
+                Loan Term: {loanTerm} years
               </label>
-              <input type="range" min="5" max="30" step="5"
-                value={property.mortgage_term || loanTerm}
+              <input type="range" min="5" max="30" step="5" value={loanTerm}
                 onChange={e => setLoanTerm(Number(e.target.value))}
                 style={{ width: '100%' }} />
             </div>
@@ -283,7 +304,7 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
             <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 12 }}>Property Details</h3>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Status</span>
+                <span>Availability</span>
                 <span style={{ color: availability === 'taken' ? '#f87171' : '#22c55e', textTransform: 'capitalize' }}>
                   {availability === 'taken' ? 'Taken' : 'Available'}
                 </span>
@@ -292,13 +313,13 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
                 <span>Location</span>
                 <span style={{ color: 'var(--text)' }}>{property.location}</span>
               </div>
-              {property.bedrooms !== undefined && (
+              {property.bedrooms !== undefined && property.bedrooms > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Bedrooms</span>
                   <span style={{ color: 'var(--text)' }}>{property.bedrooms}</span>
                 </div>
               )}
-              {property.bathrooms !== undefined && (
+              {property.bathrooms !== undefined && property.bathrooms > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Bathrooms</span>
                   <span style={{ color: 'var(--text)' }}>{property.bathrooms}</span>
@@ -312,8 +333,16 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Listing Type</span>
-                <span style={{ color: 'var(--text)' }}>{property.transaction_type_id === 2 ? 'For Rent' : 'For Sale'}</span>
+                <span style={{ color: 'var(--text)' }}>
+                  {property.transaction_type_id === 2 ? 'For Rent' : 'For Sale'}
+                </span>
               </div>
+              {property.currency && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Currency</span>
+                  <span style={{ color: 'var(--text)' }}>{property.currency}</span>
+                </div>
+              )}
             </div>
           </div>
 

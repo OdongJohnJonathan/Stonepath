@@ -37,12 +37,16 @@ export default function PropertyCard({ property, onView, onSave, saved }: Proper
           </button>
         </div>
 
-        {/* Status badge */}
-        <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
-          <div className="badge badge-gold tooltip">
+        {/* Badges */}
+        <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6, flexDirection: 'column' }}>
+          {property.is_featured && (
+            <div style={{ background: 'var(--gold)', color: '#000', padding: '3px 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              ⭐ Featured
+            </div>
+          )}
+          <div className="badge badge-gold">
             <Icons.Check />
             {property.status || 'Active'}
-            <span className="tooltip-text">Verified by Stonepath agents</span>
           </div>
         </div>
 

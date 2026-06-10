@@ -102,4 +102,42 @@ router.put("/users/:id/verify", authenticate, adminOnly, async (req, res) => {
   }
 });
 
+// PUT /admin/users/:id/verify-agent — grant verified agent badge
+router.put("/users/:id/verify-agent", authenticate, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE users SET is_agent_verified = NOT is_agent_verified, updated_at = NOW()
+       WHERE id = $1 AND role = 2
+       RETURNING id, first_name, last_name, email, is_agent_verified`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update agent verification" });
+  }
+});
+
+// PUT /admin/users/:id/premium — grant or revoke premium
+router.put("/users/:id/premium", authenticate, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE users SET is_premium = NOT is_premium, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, first_name, last_name, email, is_premium`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update premium status" });
+  }
+});
+
 export default router;

@@ -9,6 +9,9 @@ export interface AdminUser {
   role: number;
   is_verified: boolean;
   is_active: boolean;
+  is_agent_verified: boolean;
+  is_premium: boolean;
+  listing_count: number;
   created_at: string;
 }
 
@@ -28,6 +31,16 @@ export const adminApi = {
 
   verifyUser: (id: string, token: string) =>
     apiRequest<AdminUser>(`/admin/users/${id}/verify`, {
+      method: "PUT", token,
+    }),
+
+  toggleAgentVerified: (id: string, token: string) =>
+    apiRequest<AdminUser>(`/admin/users/${id}/verify-agent`, {
+      method: "PUT", token,
+    }),
+
+  togglePremium: (id: string, token: string) =>
+    apiRequest<AdminUser>(`/admin/users/${id}/premium`, {
       method: "PUT", token,
     }),
 };

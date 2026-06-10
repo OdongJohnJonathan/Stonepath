@@ -5,31 +5,46 @@ export const getProperties = async (req, res) => {
   try {
     const {
       location, status, property_type_id,
-      transaction_type_id, page = 1, limit = 10,
-      all // special param for admin/agent dashboard
+      transaction_type_id, page = 1, limit = 20,
+      all
     } = req.query;
 
     let filters = [];
     let values = [];
 
-    if (location) { values.push(`%${location}%`); filters.push(`location ILIKE $${values.length}`); }
-    if (status) { values.push(status); filters.push(`status = $${values.length}`); }
-    if (property_type_id) { values.push(property_type_id); filters.push(`property_type_id = $${values.length}`); }
-    if (transaction_type_id) { values.push(transaction_type_id); filters.push(`transaction_type_id = $${values.length}`); }
+    if (location) {
+      values.push(`%${location}%`);
+      filters.push(`location ILIKE $${values.length}`);
+    }
+    if (status) {
+      values.push(status);
+      filters.push(`status = $${values.length}`);
+    }
+    if (property_type_id) {
+      values.push(property_type_id);
+      filters.push(`property_type_id = $${values.length}`);
+    }
+    if (transaction_type_id) {
+      values.push(transaction_type_id);
+      filters.push(`transaction_type_id = $${values.length}`);
+    }
 
-    // Only show approved properties to the public
-    // Unless ?all=true is passed (used by dashboard for agents/admins)
     if (!all) {
       filters.push(`status = 'approved'`);
     }
 
+    // Auto-expire featured listings
+    filters.push(`(featured_until IS NULL OR featured_until > NOW())`);
     filters.push("deleted_at IS NULL");
 
     const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
     const offset = (page - 1) * limit;
 
     const result = await pool.query(
-      `SELECT * FROM properties ${whereClause} ORDER BY created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      `SELECT * FROM properties
+       ${whereClause}
+       ORDER BY is_featured DESC, created_at DESC
+       LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
       [...values, limit, offset]
     );
 

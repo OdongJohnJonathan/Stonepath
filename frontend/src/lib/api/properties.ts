@@ -18,6 +18,8 @@ export interface Property {
   mortgage_available?: boolean;
   mortgage_rate?: number;
   mortgage_term?: number;
+  is_featured?: boolean;
+  featured_until?: string;
   created_by?: string;
   created_at?: string;
 }
@@ -82,4 +84,14 @@ export const propertiesApi = {
       method: "DELETE",
       token,
     }),
-};
+
+  feature: (id: string, days: number, token: string) =>
+    apiRequest<Property>(`/properties/${id}/feature`, {
+      method: "PUT", body: { days }, token,
+    }),
+
+  unfeature: (id: string, token: string) =>
+    apiRequest<Property>(`/properties/${id}/unfeature`, {
+      method: "PUT", token,
+    }),
+  };
