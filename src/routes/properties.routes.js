@@ -2,12 +2,11 @@ import express from "express";
 import { body, validationResult } from "express-validator";
 import { authenticate } from "../../middleware/auth.js";
 import pool from "../db.js";
-import { checkAndVerifyAgent } from '../utils/agentVerification.js';
+import { checkAndVerifyAgent } from "../utils/agentVerification.js";
 import {
   getProperties,
   createProperty,
   updateProperty,
-  deleteProperty
 } from "../controllers/properties.controller.js";
 
 const router = express.Router();
@@ -30,17 +29,19 @@ const validateProperty = [
 // GET all properties
 router.get("/", getProperties);
 
-// POST — create property with free limit check
+// POST — create with free limit check
 router.post("/", authenticate, validateProperty, async (req, res, next) => {
   try {
     if (Number(req.user.role) === 2) {
-      const user = await pool.query(
+      // Always read fresh from DB — never trust JWT for premium status
+      const userResult = await pool.query(
         'SELECT is_premium FROM users WHERE id = $1',
         [req.user.id]
       );
 
-      if (!user.rows[0].is_premium) {
-        // Count all active (non-deleted) properties by this agent
+      const isPremium = userResult.rows[0]?.is_premium === true;
+
+      if (!isPremium) {
         const countResult = await pool.query(
           `SELECT COUNT(*) FROM properties
            WHERE created_by = $1 AND deleted_at IS NULL`,
@@ -50,7 +51,7 @@ router.post("/", authenticate, validateProperty, async (req, res, next) => {
 
         if (activeCount >= FREE_LISTING_LIMIT) {
           return res.status(403).json({
-            error: `Free accounts are limited to ${FREE_LISTING_LIMIT} listings. Upgrade to premium to list more properties.`,
+            error: `Free accounts are limited to ${FREE_LISTING_LIMIT} listings. Upgrade to premium to list more.`,
             upgrade_required: true,
           });
         }
@@ -63,8 +64,7 @@ router.post("/", authenticate, validateProperty, async (req, res, next) => {
   }
 }, createProperty);
 
-
-// PUT — update property
+// PUT — update
 router.put("/:id", authenticate, updateProperty);
 
 // DELETE — soft delete
@@ -84,7 +84,6 @@ router.delete("/:id", authenticate, async (req, res) => {
       [req.params.id]
     );
 
-    // Decrement listing count for agents
     if (Number(req.user.role) === 2) {
       await pool.query(
         "UPDATE users SET listing_count = GREATEST(listing_count - 1, 0) WHERE id = $1",
@@ -99,7 +98,7 @@ router.delete("/:id", authenticate, async (req, res) => {
   }
 });
 
-// PUT — approve property
+// PUT — approve
 router.put("/:id/approve", authenticate, async (req, res) => {
   try {
     if (Number(req.user.role) !== 1) {
@@ -109,7 +108,7 @@ router.put("/:id/approve", authenticate, async (req, res) => {
     const result = await pool.query(
       `UPDATE properties SET status = 'approved', updated_at = NOW()
        WHERE id = $1 AND deleted_at IS NULL
-       RETURNING *, created_by`,
+       RETURNING *`,
       [req.params.id]
     );
 
@@ -119,13 +118,11 @@ router.put("/:id/approve", authenticate, async (req, res) => {
 
     const agentId = result.rows[0].created_by;
 
-    // Increment listing count
     await pool.query(
       "UPDATE users SET listing_count = listing_count + 1 WHERE id = $1",
       [agentId]
     );
 
-    // Check if agent now qualifies for verified badge
     await checkAndVerifyAgent(agentId);
 
     res.json(result.rows[0]);
@@ -135,8 +132,7 @@ router.put("/:id/approve", authenticate, async (req, res) => {
   }
 });
 
-
-// PUT — toggle availability
+// PUT — availability toggle
 router.put("/:id/availability", authenticate, async (req, res) => {
   try {
     const { availability } = req.body;
@@ -167,7 +163,7 @@ router.put("/:id/availability", authenticate, async (req, res) => {
   }
 });
 
-// PUT — feature a property (admin only)
+// PUT — feature (admin only)
 router.put("/:id/feature", authenticate, async (req, res) => {
   try {
     if (Number(req.user.role) !== 1) {
@@ -192,7 +188,7 @@ router.put("/:id/feature", authenticate, async (req, res) => {
   }
 });
 
-// PUT — unfeature a property (admin only)
+// PUT — unfeature (admin only)
 router.put("/:id/unfeature", authenticate, async (req, res) => {
   try {
     if (Number(req.user.role) !== 1) {

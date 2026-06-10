@@ -1,7 +1,7 @@
 "use client";
 
-import { Icons } from '@/components/Icons';
-import { Property } from '@/lib/api';
+import { useEffect, useRef } from "react";
+import { Property } from "@/lib/api";
 
 interface MapViewProps {
   activePin: string | null;
@@ -10,76 +10,121 @@ interface MapViewProps {
 }
 
 export default function MapView({ activePin, setActivePin, properties }: MapViewProps) {
-  // Generate pseudo-positions for pins since we don't have real lat/lng yet
-  const pinPositions = [
-    { top: 30, left: 25 },
-    { top: 55, left: 60 },
-    { top: 20, left: 70 },
-    { top: 70, left: 35 },
-    { top: 45, left: 80 },
-    { top: 65, left: 55 },
-  ];
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<unknown>(null);
 
-  return (
-    <div className="map-container" style={{ height: '100%', minHeight: 400, position: 'relative' }}>
-      {/* Map grid lines */}
-      <div style={{ position: 'absolute', inset: 0, opacity: 0.3 }}>
-        {[...Array(8)].map((_, i) => (
-          <div key={`h-${i}`} style={{ position: 'absolute', top: `${10 + i * 12}%`, left: 0, right: 0, height: 1, background: 'var(--gold)', opacity: 0.15 }} />
-        ))}
-        {[...Array(6)].map((_, i) => (
-          <div key={`v-${i}`} style={{ position: 'absolute', left: `${8 + i * 16}%`, top: 0, bottom: 0, width: 1, background: 'var(--gold)', opacity: 0.15 }} />
-        ))}
-      </div>
+  // Only show properties that have real coordinates
+  const mappedProps = properties.filter(p => p.latitude && p.longitude);
 
-      {/* Road lines */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.15 }}>
-        <path d="M 0 40% Q 30% 35% 60% 50% T 100% 45%" stroke="var(--gold)" fill="none" strokeWidth="2" />
-        <path d="M 20% 0 Q 25% 40% 30% 100%" stroke="var(--gold)" fill="none" strokeWidth="1.5" />
-        <path d="M 70% 0 Q 65% 50% 75% 100%" stroke="var(--gold)" fill="none" strokeWidth="1.5" />
-        <path d="M 0 70% Q 50% 60% 100% 75%" stroke="var(--gold)" fill="none" strokeWidth="1" />
-      </svg>
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (mapInstanceRef.current) return;
 
-      {/* Compass */}
-      <div style={{ position: 'absolute', top: 12, right: 12, width: 40, height: 40, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--card-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--gold)', fontWeight: 600 }}>N</div>
+    import("leaflet").then((L) => {
+      if (!mapRef.current) return;
 
-      {/* Scale */}
-      <div style={{ position: 'absolute', bottom: 12, left: 12, display: 'flex', alignItems: 'flex-end', gap: 4 }}>
-        <div style={{ width: 40, height: 2, background: 'var(--gold)', opacity: 0.5 }} />
-        <span style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>1 KM</span>
-      </div>
+      
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
 
-      {/* Property pins */}
-      {properties.map((property, index) => {
-        const pos = pinPositions[index % pinPositions.length];
+      // Center on East Africa
+      const map = L.map(mapRef.current).setView([1.3733, 32.2903], 7);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      // Add markers for all properties with coordinates
+      mappedProps.forEach((property) => {
+        if (!property.latitude || !property.longitude) return;
+
         const price = property.amenities?.price as number | undefined;
         const priceLabel = price
-          ? price >= 1000000 ? `$${(price / 1000000).toFixed(1)}M` : `$${(price / 1000).toFixed(0)}K`
-          : 'POA';
+          ? price >= 1000000
+            ? `${property.currency || 'UGX'} ${(price / 1000000).toFixed(1)}M`
+            : `${property.currency || 'UGX'} ${(price / 1000).toFixed(0)}K`
+          : "POA";
 
-        return (
-          <div
-            key={property.id}
-            className="map-pin"
-            style={{ top: `${pos.top}%`, left: `${pos.left}%`, position: 'absolute' }}
-            onClick={() => setActivePin(activePin === property.id ? null : property.id)}
-          >
-            <div className={`pin-bubble ${activePin === property.id ? 'expanded' : ''}`}>
-              {activePin === property.id
-                ? `${property.title} · ${priceLabel}`
-                : priceLabel}
+        // Custom gold marker
+        const icon = L.divIcon({
+          className: "",
+          html: `
+            <div style="
+              background: #c9a84c;
+              color: #000;
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 11px;
+              font-weight: 700;
+              white-space: nowrap;
+              font-family: 'DM Sans', sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              position: relative;
+            ">
+              ${priceLabel}
+              <div style="
+                position: absolute;
+                bottom: -6px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 0;
+                height: 0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 6px solid #c9a84c;
+              "></div>
             </div>
-            <div className="pin-tip" />
-          </div>
-        );
-      })}
+          `,
+          iconAnchor: [30, 36],
+        });
 
-      {/* Empty state */}
-      {properties.length === 0 && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-          No properties to show on map yet.
+        const marker = L.marker([property.latitude, property.longitude], { icon })
+          .addTo(map)
+          .bindPopup(`
+            <div style="font-family: 'DM Sans', sans-serif; min-width: 200px;">
+              ${property.images?.[0] ? `<img src="${property.images[0]}" style="width:100%; height:100px; object-fit:cover; margin-bottom:8px; border-radius:2px;" />` : ''}
+              <div style="font-weight:600; margin-bottom:4px;">${property.title}</div>
+              <div style="color:#666; font-size:12px; margin-bottom:4px;">📍 ${property.location}</div>
+              <div style="color:#c9a84c; font-weight:700;">${priceLabel}</div>
+              ${property.bedrooms ? `<div style="font-size:11px; color:#888; margin-top:4px;">🛏 ${property.bedrooms} beds · 🚿 ${property.bathrooms} baths</div>` : ''}
+            </div>
+          `, { maxWidth: 240 });
+
+        marker.on("click", () => setActivePin(property.id));
+      });
+
+      mapInstanceRef.current = map;
+    });
+
+    return () => {
+      if (mapInstanceRef.current) {
+        (mapInstanceRef.current as { remove: () => void }).remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  return (
+    <div style={{ position: "relative", height: "100%", minHeight: 400 }}>
+      {mappedProps.length === 0 && (
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0,
+          background: "rgba(10,10,11,0.85)", backdropFilter: "blur(8px)",
+          zIndex: 10, padding: "16px 20px", display: "flex",
+          alignItems: "center", gap: 12,
+        }}>
+          <span style={{ fontSize: 20 }}>🗺️</span>
+          <div>
+            <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>No pinned properties yet</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Properties will appear on the map once agents add location pins when listing.</div>
+          </div>
         </div>
       )}
+      <div ref={mapRef} style={{ height: "100%", minHeight: 400, width: "100%" }} />
     </div>
   );
 }

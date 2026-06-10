@@ -4,6 +4,16 @@ import { useState, useRef } from "react";
 import { propertiesApi } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { uploadImage } from "@/lib/uploadImage";
+import dynamic from "next/dynamic";
+
+const MapPicker = dynamic(() => import("@/components/MapPicker"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 280, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+      Loading map...
+    </div>
+  ),
+});
 
 interface Props {
   onSuccess: () => void;
@@ -50,7 +60,11 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     zoning: "",
     floors: "",
     office_units: "",
+    
   });
+
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
 
   const [amenities, setAmenities] = useState({
     parking: false,
@@ -293,6 +307,17 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
 
           {/* ── PROPERTY DETAILS — varies by type ── */}
           {sectionTitle('Property Details')}
+
+          {/* ── MAP LOCATION PICKER ── */}
+          {sectionTitle('Pin Location on Map')}
+          <MapPicker
+            latitude={latitude}
+            longitude={longitude}
+            onChange={(lat, lng) => {
+              setLatitude(lat);
+              setLongitude(lng);
+            }}
+/>
 
           {/* Residential fields */}
           {isResidential && (

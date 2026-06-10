@@ -8,6 +8,11 @@ export interface UserProfile {
   phone_number?: string;
   role: number;
   is_verified: boolean;
+  is_active: boolean;
+  is_premium: boolean;
+  is_agent_verified: boolean;
+  listing_count: number;
+  premium_expires_at?: string;
   profile_image_url?: string;
   created_at: string;
 }

@@ -12,6 +12,7 @@ export interface AdminUser {
   is_agent_verified: boolean;
   is_premium: boolean;
   listing_count: number;
+  premium_expires_at?: string;
   created_at: string;
 }
 

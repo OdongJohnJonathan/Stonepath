@@ -20,8 +20,30 @@ export interface Property {
   mortgage_term?: number;
   is_featured?: boolean;
   featured_until?: string;
+  latitude?: number;
+  longitude?: number;
   created_by?: string;
   created_at?: string;
+}
+
+export interface CreatePropertyPayload {
+  title: string;
+  description: string;
+  location: string;
+  address?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  square_footage?: number;
+  property_type_id: number;
+  transaction_type_id: number;
+  images?: string[];
+  amenities?: Record<string, unknown>;
+  currency?: string;
+  mortgage_available?: boolean;
+  mortgage_rate?: number;
+  mortgage_term?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface PropertyFilters {

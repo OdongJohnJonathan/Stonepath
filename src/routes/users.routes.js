@@ -9,11 +9,17 @@ router.get("/me", authenticate, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, first_name, last_name, email, phone_number,
-              role, is_verified, profile_image_url, created_at
+              role, is_verified, is_active, is_premium,
+              is_agent_verified, listing_count, premium_expires_at,
+              profile_image_url, created_at
        FROM users WHERE id = $1`,
       [req.user.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -41,7 +47,10 @@ router.put("/me", authenticate, [
            profile_image_url = COALESCE($4, profile_image_url),
            updated_at = NOW()
        WHERE id = $5
-       RETURNING id, first_name, last_name, email, phone_number, profile_image_url`,
+       RETURNING id, first_name, last_name, email, phone_number,
+                 role, is_verified, is_active, is_premium,
+                 is_agent_verified, listing_count, premium_expires_at,
+                 profile_image_url, created_at`,
       [first_name, last_name, phone_number, profile_image_url, req.user.id]
     );
     res.json(result.rows[0]);

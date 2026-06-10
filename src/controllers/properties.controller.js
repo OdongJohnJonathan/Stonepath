@@ -63,7 +63,8 @@ export const createProperty = async (req, res) => {
       bedrooms, bathrooms, square_footage,
       property_type_id, transaction_type_id,
       images, amenities, currency,
-      mortgage_available, mortgage_rate, mortgage_term
+      mortgage_available, mortgage_rate, mortgage_term,
+      latitude, longitude
     } = req.body;
 
     const created_by = req.user?.id;
@@ -73,8 +74,8 @@ export const createProperty = async (req, res) => {
       (title, description, location, address, bedrooms, bathrooms, square_footage,
        property_type_id, transaction_type_id, created_by, images, amenities,
        currency, mortgage_available, mortgage_rate, mortgage_term,
-       status, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'pending',NOW(),NOW())
+       latitude, longitude, status, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'pending',NOW(),NOW())
       RETURNING *`,
       [
         title, description, location, address,
@@ -87,6 +88,8 @@ export const createProperty = async (req, res) => {
         mortgage_available || false,
         mortgage_rate || null,
         mortgage_term || null,
+        latitude || null,
+        longitude || null,
       ]
     );
 
