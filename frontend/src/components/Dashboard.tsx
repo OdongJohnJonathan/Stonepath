@@ -8,6 +8,9 @@ import SubmitPropertyForm from '@/components/SubmitPropertyForm';
 import AdminUsersPanel from '@/components/AdminUsersPanel';
 import EnquiriesPanel from '@/components/EnquiriesPanel';
 import MyEnquiriesPanel from '@/components/MyEnquiriesPanel';
+import InspectionsPanel from '@/components/InspectionsPanel';
+import MyInspectionsPanel from '@/components/MyInspectionsPanel';
+import InspectionCalendar from '@/components/InspectionCalendar';
 
 interface DashboardProps {
   properties: Property[];
@@ -45,11 +48,14 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
   const activeListingCount = myListings.length;
   const atFreeLimit = isAgent && !isPremium && activeListingCount >= 3;
 
-  const formatPrice = (amenities?: Record<string, unknown>) => {
-    const price = amenities?.price as number | undefined;
-    if (!price) return "POA";
-    return price >= 1000000 ? `$${(price / 1000000).toFixed(1)}M` : `$${(price / 1000).toFixed(0)}K`;
-  };
+  const formatPrice = (amenities?: Record<string, unknown>, currency?: string) => {
+  const price = amenities?.price as number | undefined;
+  if (!price) return "POA";
+  const symbol = currency || 'UGX';
+  return price >= 1000000
+    ? `${symbol} ${(price / 1000000).toFixed(1)}M`
+    : `${symbol} ${(price / 1000).toFixed(0)}K`;
+};
 
   const thumbnail = (images: string[]) =>
     images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80";
@@ -478,6 +484,12 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
         {isAgent && <EnquiriesPanel />}
         {isBuyer && <MyEnquiriesPanel />}
         {isAdmin && <EnquiriesPanel />}
+
+        {/* ── INSPECTIONS ── */}
+        {isAgent && <InspectionsPanel />}
+        {isAgent && <InspectionCalendar />}
+        {isBuyer && <MyInspectionsPanel />}
+        {isAdmin && <InspectionsPanel isAdmin={true} />}
 
         {/* ── ADMIN: USER MANAGEMENT ── */}
         {isAdmin && <AdminUsersPanel />}

@@ -1,8 +1,9 @@
+// REPLACE with:
 "use client";
 
 import { Icons } from '@/components/Icons';
 import { useState } from "react";
-import { Property, enquiriesApi } from '@/lib/api';
+import { Property, enquiriesApi, inspectionsApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -23,6 +24,19 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
   const [downPayment, setDownPayment] = useState(20);
   const [loanTerm, setLoanTerm] = useState(property.mortgage_term || 20);
   const [rate, setRate] = useState(property.mortgage_rate || 18);
+
+// Inspection state
+const [showInspection, setShowInspection] = useState(false);
+const [inspectionForm, setInspectionForm] = useState({
+  preferred_date: '',
+  preferred_time: '',
+  message: '',
+  phone_number: '',
+  provider: 'mtn',
+});
+const [inspectionLoading, setInspectionLoading] = useState(false);
+const [inspectionBooked, setInspectionBooked] = useState(false);
+const [inspectionError, setInspectionError] = useState('');
 
   // Enquiry state
   const [showEnquiry, setShowEnquiry] = useState(false);
@@ -60,6 +74,28 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
       setEnquiryError(err instanceof Error ? err.message : 'Failed to send enquiry');
     } finally {
       setEnquiryLoading(false);
+    }
+  };
+
+  const handleInspection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) { router.push('/login'); return; }
+    setInspectionLoading(true);
+    setInspectionError('');
+    try {
+      await inspectionsApi.book({
+        property_id: property.id,
+        preferred_date: inspectionForm.preferred_date,
+        preferred_time: inspectionForm.preferred_time,
+        message: inspectionForm.message,
+        phone_number: inspectionForm.phone_number,
+        provider: inspectionForm.provider,
+      }, token);
+      setInspectionBooked(true);
+    } catch (err: unknown) {
+      setInspectionError(err instanceof Error ? err.message : 'Failed to book inspection');
+    } finally {
+      setInspectionLoading(false);
     }
   };
 
@@ -121,7 +157,7 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
 
           {/* Thumbnails */}
           <div className="gallery-thumbs" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 28 }}>
-            {galleryImages.slice(0, 5).map((img, i) => (
+            {galleryImages.slice(0, 5).map((img: string, i: number) => (
               <div key={i} onClick={() => { setActiveImg(i); setTour360(false); }}
                 style={{ height: 60, cursor: 'pointer', border: activeImg === i && !tour360 ? '2px solid var(--gold)' : '2px solid transparent', overflow: 'hidden' }}>
                 <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -131,9 +167,16 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
 
           {/* Title + location */}
           <h2 className="font-serif" style={{ fontSize: 36, fontWeight: 300 }}>{property.title}</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4, marginBottom: 20 }}>
-            📍 {property.address || property.location}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 20 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+              📍 {property.address || property.location}
+            </p>
+            {property.agent_verified && (
+              <span style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(201,168,76,0.3)', whiteSpace: 'nowrap' }}>
+                ✓ Verified Agent
+              </span>
+            )}
+          </div>
 
           {/* Quick stats row */}
           <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', paddingBottom: 20, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -165,14 +208,14 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
                 </span>
               ))}
               {/* Commercial extras */}
-              {property.amenities?.floors && (
+              {(property.amenities?.floors as number) > 0 && (
                 <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2 }}>
-                  🏢 {String(property.amenities.floors)} Floor{Number(property.amenities.floors) > 1 ? 's' : ''}
+                  🏢 {property.amenities?.floors as number} Floor{(property.amenities?.floors as number) > 1 ? 's' : ''}
                 </span>
               )}
-              {property.amenities?.office_units && (
+              {!!property.amenities?.office_units && (
                 <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2 }}>
-                  🚪 {String(property.amenities.office_units)} Units
+                  🚪 {property.amenities.office_units as number} Units
                 </span>
               )}
               {/* Land extras */}
@@ -266,6 +309,115 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
               </button>
             )}
           </div>
+
+
+          {/* Book Inspection */}
+          {user && availability !== 'taken' && (
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
+              <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 8 }}>Book Inspection</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
+                Visit this property in person. A refundable fee of <strong style={{ color: 'var(--gold)' }}>UGX 2,000</strong> confirms your booking.
+              </p>
+
+              {inspectionBooked ? (
+                <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+                  <p style={{ color: '#22c55e', fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Inspection Booked!</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Check your email for confirmation details.</p>
+                </div>
+              ) : showInspection ? (
+                <form onSubmit={handleInspection} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {inspectionError && (
+                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '8px 12px', fontSize: 12 }}>
+                      {inspectionError}
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preferred Date *</label>
+                    <input type="date" required
+                      min={new Date().toISOString().split('T')[0]}
+                      value={inspectionForm.preferred_date}
+                      onChange={e => setInspectionForm(f => ({ ...f, preferred_date: e.target.value }))}
+                      style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preferred Time *</label>
+                    <select required
+                      value={inspectionForm.preferred_time}
+                      onChange={e => setInspectionForm(f => ({ ...f, preferred_time: e.target.value }))}
+                      style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif" }}>
+                      <option value="">Select a time</option>
+                      <option value="8:00 AM">8:00 AM</option>
+                      <option value="9:00 AM">9:00 AM</option>
+                      <option value="10:00 AM">10:00 AM</option>
+                      <option value="11:00 AM">11:00 AM</option>
+                      <option value="12:00 PM">12:00 PM</option>
+                      <option value="2:00 PM">2:00 PM</option>
+                      <option value="3:00 PM">3:00 PM</option>
+                      <option value="4:00 PM">4:00 PM</option>
+                      <option value="5:00 PM">5:00 PM</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Note (optional)</label>
+                    <textarea rows={2}
+                      value={inspectionForm.message}
+                      onChange={e => setInspectionForm(f => ({ ...f, message: e.target.value }))}
+                      placeholder="Any specific requests..."
+                      style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif", resize: 'none', boxSizing: 'border-box' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Mobile Money Number *</label>
+                    <input type="tel" required
+                      value={inspectionForm.phone_number}
+                      onChange={e => setInspectionForm(f => ({ ...f, phone_number: e.target.value }))}
+                      placeholder="+256 700 000 000"
+                      style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Pay With</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                      {[
+                        { id: 'mtn', label: 'MTN', color: '#f59e0b' },
+                        { id: 'airtel', label: 'Airtel', color: '#ef4444' },
+                        { id: 'mpesa', label: 'M-Pesa', color: '#22c55e' },
+                      ].map(p => (
+                        <div key={p.id} onClick={() => setInspectionForm(f => ({ ...f, provider: p.id }))}
+                          style={{ padding: '6px 4px', textAlign: 'center', border: `1px solid ${inspectionForm.provider === p.id ? p.color : 'var(--border)'}`, background: inspectionForm.provider === p.id ? `${p.color}18` : 'transparent', cursor: 'pointer', borderRadius: 2 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: inspectionForm.provider === p.id ? p.color : 'var(--text-muted)' }}>{p.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <button type="button" onClick={() => setShowInspection(false)}
+                      style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px', fontSize: 11, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={inspectionLoading}
+                      style={{ flex: 2, background: inspectionLoading ? 'rgba(34,197,94,0.3)' : '#22c55e', border: 'none', color: '#000', padding: '8px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: inspectionLoading ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                      {inspectionLoading ? 'Booking...' : 'Pay UGX 2,000 & Book'}
+                    </button>
+                  </div>
+
+                  <p style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>
+                    In development mode, payment is confirmed instantly.
+                  </p>
+                </form>
+              ) : (
+                <button onClick={() => setShowInspection(true)}
+                  style={{ width: '100%', background: 'transparent', border: '1px solid #22c55e', color: '#22c55e', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  🏠 Book an Inspection
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Mortgage Calculator — only if agent enabled it */}
           {property.mortgage_available && price > 0 && (

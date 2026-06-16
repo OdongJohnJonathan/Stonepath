@@ -22,6 +22,7 @@ export interface Property {
   featured_until?: string;
   latitude?: number;
   longitude?: number;
+  agent_verified?: boolean;
   created_by?: string;
   created_at?: string;
 }

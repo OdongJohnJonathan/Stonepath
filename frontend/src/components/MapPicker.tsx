@@ -15,23 +15,24 @@ export default function MapPicker({ latitude, longitude, onChange }: MapPickerPr
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (mapInstanceRef.current) return; // already initialized
+    if (!mapRef.current) return;
+    if (mapInstanceRef.current) return;
 
-    // Dynamically import leaflet to avoid SSR issues
+    // Prevent double-init from React strict mode
+    if (mapRef.current.classList.contains("leaflet-container")) return;
+
     import("leaflet").then((L) => {
       if (!mapRef.current) return;
+      if (mapRef.current.classList.contains("leaflet-container")) return;
 
-      // Fix default marker icon paths
-      // REPLACE with this:
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
         iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      // Default center — Kampala, Uganda
       const defaultLat = latitude || 0.3476;
       const defaultLng = longitude || 32.5825;
 
@@ -41,21 +42,20 @@ delete (L.Icon.Default.prototype as any)._getIconUrl;
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
-      // Add marker if coordinates already exist
       if (latitude && longitude) {
-        markerRef.current = L.marker([latitude, longitude]).addTo(map);
+        markerRef.current = L.marker([latitude, longitude])
+          .addTo(map)
+          .bindPopup("📍 Property location")
+          .openPopup();
       }
 
-      // Click to place/move marker
       map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
         const { lat, lng } = e.latlng;
 
-        // Remove old marker
         if (markerRef.current) {
           (markerRef.current as { remove: () => void }).remove();
         }
 
-        // Add new marker
         markerRef.current = L.marker([lat, lng])
           .addTo(map)
           .bindPopup("📍 Property location")
@@ -87,7 +87,7 @@ delete (L.Icon.Default.prototype as any)._getIconUrl;
         </div>
       ) : (
         <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
-          Click anywhere on the map to place the property pin
+          Click anywhere on the map to pin the property location
         </div>
       )}
     </div>

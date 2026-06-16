@@ -13,17 +13,21 @@ export default function MapView({ activePin, setActivePin, properties }: MapView
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
 
-  // Only show properties that have real coordinates
   const mappedProps = properties.filter(p => p.latitude && p.longitude);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!mapRef.current) return;
     if (mapInstanceRef.current) return;
+
+    // Check if already initialized by Leaflet
+    if (mapRef.current.classList.contains("leaflet-container")) return;
 
     import("leaflet").then((L) => {
       if (!mapRef.current) return;
+      if (mapRef.current.classList.contains("leaflet-container")) return;
 
-      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -31,14 +35,12 @@ export default function MapView({ activePin, setActivePin, properties }: MapView
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      // Center on East Africa
       const map = L.map(mapRef.current).setView([1.3733, 32.2903], 7);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
-      // Add markers for all properties with coordinates
       mappedProps.forEach((property) => {
         if (!property.latitude || !property.longitude) return;
 
@@ -49,30 +51,19 @@ export default function MapView({ activePin, setActivePin, properties }: MapView
             : `${property.currency || 'UGX'} ${(price / 1000).toFixed(0)}K`
           : "POA";
 
-        // Custom gold marker
         const icon = L.divIcon({
           className: "",
           html: `
             <div style="
-              background: #c9a84c;
-              color: #000;
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 11px;
-              font-weight: 700;
-              white-space: nowrap;
-              font-family: 'DM Sans', sans-serif;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-              position: relative;
+              background: #c9a84c; color: #000; padding: 4px 8px;
+              border-radius: 4px; font-size: 11px; font-weight: 700;
+              white-space: nowrap; font-family: 'DM Sans', sans-serif;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: relative;
             ">
               ${priceLabel}
               <div style="
-                position: absolute;
-                bottom: -6px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 0;
-                height: 0;
+                position: absolute; bottom: -6px; left: 50%;
+                transform: translateX(-50%); width: 0; height: 0;
                 border-left: 6px solid transparent;
                 border-right: 6px solid transparent;
                 border-top: 6px solid #c9a84c;
@@ -120,7 +111,7 @@ export default function MapView({ activePin, setActivePin, properties }: MapView
           <span style={{ fontSize: 20 }}>🗺️</span>
           <div>
             <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>No pinned properties yet</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Properties will appear on the map once agents add location pins when listing.</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Properties will appear here once agents pin their locations.</div>
           </div>
         </div>
       )}

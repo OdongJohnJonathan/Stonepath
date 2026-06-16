@@ -69,9 +69,16 @@ export default function PropertyCard({ property, onView, onSave, saved }: Proper
       <div style={{ padding: '18px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
           <div>
-            <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 4 }}>
-              {property.location}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', margin: 0 }}>
+                {property.location}
+              </p>
+              {property.agent_verified && (
+                <span title="Verified Agent" style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(201,168,76,0.3)' }}>
+                  ✓ Verified
+                </span>
+              )}
+            </div>
             <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, color: 'var(--text)', lineHeight: 1.2 }}>
               {property.title}
             </h3>

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
+import dynamic from "next/dynamic";
 import { propertiesApi } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { uploadImage } from "@/lib/uploadImage";
-import dynamic from "next/dynamic";
 
 const MapPicker = dynamic(() => import("@/components/MapPicker"), {
   ssr: false,
@@ -20,21 +20,13 @@ interface Props {
   onCancel: () => void;
 }
 
-// Currency by country keyword
 const getCurrency = (location: string) => {
   const loc = location.toLowerCase();
   if (loc.includes('kenya') || loc.includes('nairobi') || loc.includes('mombasa')) return 'KES';
   if (loc.includes('tanzania') || loc.includes('dar es salaam') || loc.includes('arusha')) return 'TZS';
-  return 'UGX'; // default Uganda
+  return 'UGX';
 };
 
-const currencySymbols: Record<string, string> = {
-  UGX: 'UGX',
-  KES: 'KES',
-  TZS: 'TZS',
-};
-
-// Property type IDs
 const RESIDENTIAL = 1;
 const COMMERCIAL = 2;
 const LAND = 3;
@@ -60,11 +52,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     zoning: "",
     floors: "",
     office_units: "",
-    
   });
-
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
 
   const [amenities, setAmenities] = useState({
     parking: false,
@@ -81,6 +69,8 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     elevator: false,
   });
 
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -94,10 +84,10 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   const currency = getCurrency(form.location);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
+    const target = e.target as HTMLInputElement;
+    const { name, value, type } = target;
     if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setForm(f => ({ ...f, [name]: checked }));
+      setForm(f => ({ ...f, [name]: target.checked }));
     } else {
       setForm(f => ({ ...f, [name]: value }));
     }
@@ -108,17 +98,16 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     setAmenities(a => ({ ...a, [key]: !a[key as keyof typeof a] }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    addFiles(files);
-  };
-
   const addFiles = (files: File[]) => {
     const valid = files.filter(f => f.type.startsWith('image/') && f.size <= 5 * 1024 * 1024);
-    if (valid.length !== files.length) setError("Some files were skipped (must be images under 5MB)");
-    const combined = [...imageFiles, ...valid].slice(0, 10); // max 10
+    if (valid.length !== files.length) setError("Some files skipped — must be images under 5MB");
+    const combined = [...imageFiles, ...valid].slice(0, 10);
     setImageFiles(combined);
     setImagePreviews(combined.map(f => URL.createObjectURL(f)));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files || []));
   };
 
   const removeImage = (index: number) => {
@@ -134,13 +123,12 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) { setError("You must be logged in to submit a property."); return; }
+    if (!token) { setError("You must be logged in."); return; }
     setLoading(true);
     setError("");
 
     try {
       let imageUrls: string[] = [];
-
       if (imageFiles.length > 0) {
         setUploading(true);
         imageUrls = await Promise.all(imageFiles.map(f => uploadImage(f)));
@@ -177,6 +165,8 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
         mortgage_available: form.mortgage_available,
         mortgage_rate: form.mortgage_available ? parseFloat(form.mortgage_rate) || 0 : undefined,
         mortgage_term: form.mortgage_available ? parseInt(form.mortgage_term) || 20 : undefined,
+        latitude: latitude || undefined,
+        longitude: longitude || undefined,
       }, token);
 
       onSuccess();
@@ -222,7 +212,6 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     { key: 'elevator', label: '🛗 Elevator' },
   ];
 
-  // Filter amenities by property type
   const relevantAmenities = isLand
     ? amenityList.filter(a => ['borehole', 'gated', 'security'].includes(a.key))
     : isCommercial
@@ -265,7 +254,6 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             <textarea name="description" value={form.description} onChange={handleChange} required placeholder="Describe the property..." rows={3} style={{ ...inputStyle, resize: "vertical" }} />
           </div>
 
-          {/* Property Type + Transaction Type */}
           <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
               <label style={labelStyle}>Property Type *</label>
@@ -298,17 +286,13 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </div>
           </div>
 
-          {/* Show detected currency */}
           {form.location && (
             <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: -8 }}>
-              💰 Currency auto-detected: <strong>{currency}</strong> based on location
+              💰 Currency auto-detected: <strong>{currency}</strong>
             </div>
           )}
 
-          {/* ── PROPERTY DETAILS — varies by type ── */}
-          {sectionTitle('Property Details')}
-
-          {/* ── MAP LOCATION PICKER ── */}
+          {/* ── MAP PICKER ── */}
           {sectionTitle('Pin Location on Map')}
           <MapPicker
             latitude={latitude}
@@ -317,9 +301,11 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
               setLatitude(lat);
               setLongitude(lng);
             }}
-/>
+          />
 
-          {/* Residential fields */}
+          {/* ── PROPERTY DETAILS ── */}
+          {sectionTitle('Property Details')}
+
           {isResidential && (
             <div className="modal-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
               <div>
@@ -337,7 +323,6 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </div>
           )}
 
-          {/* Commercial fields */}
           {isCommercial && (
             <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
@@ -359,7 +344,6 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </div>
           )}
 
-          {/* Land fields */}
           {isLand && (
             <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
@@ -384,15 +368,12 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
           {sectionTitle('Pricing')}
 
           <div>
-            <label style={labelStyle}>
-              Price ({currency}) *
-            </label>
+            <label style={labelStyle}>Price ({currency}) *</label>
             <input name="price" type="number" min="0" value={form.price} onChange={handleChange} required
               placeholder={currency === 'UGX' ? 'e.g. 450,000,000' : currency === 'KES' ? 'e.g. 15,000,000' : 'e.g. 250,000,000'}
               style={inputStyle} />
           </div>
 
-          {/* Mortgage — only for residential for sale */}
           {isResidential && form.transaction_type_id === '1' && (
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
@@ -405,8 +386,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
                 <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
                   <div>
                     <label style={labelStyle}>Interest Rate (%)</label>
-                    <input name="mortgage_rate" type="number" min="1" max="30" step="0.5" value={form.mortgage_rate} onChange={handleChange}
-                      placeholder="e.g. 18" style={inputStyle} />
+                    <input name="mortgage_rate" type="number" min="1" max="30" step="0.5" value={form.mortgage_rate} onChange={handleChange} placeholder="e.g. 18" style={inputStyle} />
                   </div>
                   <div>
                     <label style={labelStyle}>Loan Term (years)</label>
@@ -429,7 +409,14 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
             {relevantAmenities.map(({ key, label }) => (
-              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 10px', border: `1px solid ${amenities[key as keyof typeof amenities] ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 2, background: amenities[key as keyof typeof amenities] ? 'rgba(201,168,76,0.08)' : 'transparent', transition: 'all 0.15s ease', fontSize: 13, color: 'var(--text)' }}>
+              <label key={key} style={{
+                display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                padding: '8px 10px',
+                border: `1px solid ${amenities[key as keyof typeof amenities] ? 'var(--gold)' : 'var(--border)'}`,
+                borderRadius: 2,
+                background: amenities[key as keyof typeof amenities] ? 'rgba(201,168,76,0.08)' : 'transparent',
+                transition: 'all 0.15s ease', fontSize: 13, color: 'var(--text)'
+              }}>
                 <input type="checkbox" checked={amenities[key as keyof typeof amenities]} onChange={() => toggleAmenity(key)}
                   style={{ width: 14, height: 14, accentColor: 'var(--gold)' }} />
                 {label}
@@ -453,7 +440,6 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
 
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} style={{ display: "none" }} />
 
-          {/* Image previews */}
           {imagePreviews.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
               {imagePreviews.map((src, i) => (

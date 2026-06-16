@@ -14,36 +14,37 @@ export const getProperties = async (req, res) => {
 
     if (location) {
       values.push(`%${location}%`);
-      filters.push(`location ILIKE $${values.length}`);
+      filters.push(`p.location ILIKE $${values.length}`);
     }
     if (status) {
       values.push(status);
-      filters.push(`status = $${values.length}`);
+      filters.push(`p.status = $${values.length}`);
     }
     if (property_type_id) {
       values.push(property_type_id);
-      filters.push(`property_type_id = $${values.length}`);
+      filters.push(`p.property_type_id = $${values.length}`);
     }
     if (transaction_type_id) {
       values.push(transaction_type_id);
-      filters.push(`transaction_type_id = $${values.length}`);
+      filters.push(`p.transaction_type_id = $${values.length}`);
     }
 
     if (!all) {
-      filters.push(`status = 'approved'`);
+      filters.push(`p.status = 'approved'`);
     }
 
-    // Auto-expire featured listings
-    filters.push(`(featured_until IS NULL OR featured_until > NOW())`);
-    filters.push("deleted_at IS NULL");
+    filters.push(`(p.featured_until IS NULL OR p.featured_until > NOW())`);
+    filters.push("p.deleted_at IS NULL");
 
     const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
     const offset = (page - 1) * limit;
 
     const result = await pool.query(
-      `SELECT * FROM properties
+      `SELECT p.*, u.is_agent_verified as agent_verified
+       FROM properties p
+       LEFT JOIN users u ON p.created_by = u.id
        ${whereClause}
-       ORDER BY is_featured DESC, created_at DESC
+       ORDER BY p.is_featured DESC, p.created_at DESC
        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
       [...values, limit, offset]
     );

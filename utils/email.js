@@ -157,3 +157,26 @@ export const sendReplyNotificationToBuyer = async ({
     `,
   });
 };
+export const sendInspectionNotificationToAgent = async ({
+  agentEmail, agentFirstName, buyerName, buyerEmail,
+  buyerPhone, propertyTitle, preferredDate, preferredTime, message,
+}) => {
+  await resend.emails.send({
+    from: FROM,
+    to: agentEmail,
+    subject: `Inspection booked for "${propertyTitle}"`,
+    html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;"><h1 style="color:#c9a84c;margin-bottom:24px;">Stonepath™</h1><h2 style="font-weight:400;margin-bottom:4px;">Inspection Request</h2><p style="color:#8892a4;font-size:13px;margin-bottom:28px;">A buyer has booked a property inspection.</p><div style="background:#1a1a1a;border-left:3px solid #c9a84c;padding:16px;margin-bottom:16px;"><div style="font-size:11px;color:#c9a84c;text-transform:uppercase;margin-bottom:6px;">Property</div><div>${propertyTitle}</div></div><div style="background:#1a1a1a;border-left:3px solid #22c55e;padding:16px;margin-bottom:16px;"><div style="font-size:11px;color:#22c55e;text-transform:uppercase;margin-bottom:10px;">Inspection Details</div><div style="margin-bottom:6px;"><span style="color:#8892a4;">Date:</span> <strong>${preferredDate}</strong></div><div><span style="color:#8892a4;">Time:</span> <strong>${preferredTime}</strong></div></div><div style="background:#1a1a1a;padding:16px;margin-bottom:24px;"><div style="font-size:11px;color:#8892a4;text-transform:uppercase;margin-bottom:10px;">Buyer Details</div><div style="margin-bottom:6px;"><span style="color:#8892a4;">Name:</span> ${buyerName}</div><div style="margin-bottom:6px;"><span style="color:#8892a4;">Email:</span> <a href="mailto:${buyerEmail}" style="color:#c9a84c;">${buyerEmail}</a></div>${buyerPhone ? `<div><span style="color:#8892a4;">Phone:</span> ${buyerPhone}</div>` : ''}${message ? `<div style="margin-top:10px;"><span style="color:#8892a4;">Note:</span> ${message}</div>` : ''}</div><div style="background:#1a1a1a;padding:12px 16px;margin-bottom:28px;"><div style="font-size:12px;color:#22c55e;">✓ Payment of UGX 2,000 confirmed</div></div><a href="${FRONTEND_URL}" style="background:#c9a84c;color:#000;padding:14px 32px;text-decoration:none;font-weight:600;font-size:13px;text-transform:uppercase;display:inline-block;">View on Stonepath</a><p style="color:#555;font-size:12px;margin-top:32px;">Hi ${agentFirstName}, please confirm this inspection on your Stonepath dashboard.</p></div>`,
+  });
+};
+
+export const sendInspectionConfirmationToBuyer = async ({
+  buyerEmail, buyerFirstName, propertyTitle,
+  preferredDate, preferredTime, agentName, agentEmail, agentPhone,
+}) => {
+  await resend.emails.send({
+    from: FROM,
+    to: buyerEmail,
+    subject: `Inspection booked for "${propertyTitle}"`,
+    html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;"><h1 style="color:#c9a84c;margin-bottom:24px;">Stonepath™</h1><h2 style="font-weight:400;margin-bottom:4px;">Inspection Booked!</h2><p style="color:#8892a4;font-size:13px;margin-bottom:28px;">Your inspection has been booked successfully.</p><div style="background:#1a1a1a;border-left:3px solid #c9a84c;padding:16px;margin-bottom:16px;"><div style="font-size:11px;color:#c9a84c;text-transform:uppercase;margin-bottom:6px;">Property</div><div>${propertyTitle}</div></div><div style="background:#1a1a1a;border-left:3px solid #22c55e;padding:16px;margin-bottom:16px;"><div style="font-size:11px;color:#22c55e;text-transform:uppercase;margin-bottom:10px;">Your Inspection</div><div style="margin-bottom:6px;"><span style="color:#8892a4;">Date:</span> <strong>${preferredDate}</strong></div><div><span style="color:#8892a4;">Time:</span> <strong>${preferredTime}</strong></div></div><div style="background:#1a1a1a;padding:16px;margin-bottom:24px;"><div style="font-size:11px;color:#8892a4;text-transform:uppercase;margin-bottom:10px;">Agent Contact</div><div style="margin-bottom:6px;"><span style="color:#8892a4;">Name:</span> ${agentName}</div><div style="margin-bottom:6px;"><span style="color:#8892a4;">Email:</span> <a href="mailto:${agentEmail}" style="color:#c9a84c;">${agentEmail}</a></div>${agentPhone ? `<div><span style="color:#8892a4;">Phone:</span> ${agentPhone}</div>` : ''}</div><div style="background:#1a1a1a;padding:12px 16px;margin-bottom:28px;"><div style="font-size:12px;color:#22c55e;">✓ Payment of UGX 2,000 received</div></div><a href="${FRONTEND_URL}" style="background:#c9a84c;color:#000;padding:14px 32px;text-decoration:none;font-weight:600;font-size:13px;text-transform:uppercase;display:inline-block;">View on Stonepath</a><p style="color:#555;font-size:12px;margin-top:32px;">Hi ${buyerFirstName}, the agent will be in touch to confirm. Contact them directly above.</p></div>`,
+  });
+};
