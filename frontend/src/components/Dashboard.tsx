@@ -11,6 +11,9 @@ import MyEnquiriesPanel from '@/components/MyEnquiriesPanel';
 import InspectionsPanel from '@/components/InspectionsPanel';
 import MyInspectionsPanel from '@/components/MyInspectionsPanel';
 import InspectionCalendar from '@/components/InspectionCalendar';
+import HostAvailabilityCalendar from '@/components/HostAvailabilityCalendar';
+import HostShortStaysPanel from '@/components/HostShortStaysPanel';
+import MyShortStaysPanel from '@/components/MyShortStaysPanel';
 
 interface DashboardProps {
   properties: Property[];
@@ -487,7 +490,10 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
 
         {/* ── INSPECTIONS ── */}
         {isAgent && <InspectionsPanel />}
+        {isBuyer && <MyShortStaysPanel />}
         {isAgent && <InspectionCalendar />}
+        {isAgent && <HostShortStaysPanel />}
+        {isAgent && <HostAvailabilityCalendar properties={myListings} />}
         {isBuyer && <MyInspectionsPanel />}
         {isAdmin && <InspectionsPanel isAdmin={true} />}
 

@@ -1,4 +1,3 @@
-// REPLACE with:
 "use client";
 
 import { Icons } from '@/components/Icons';
@@ -6,6 +5,7 @@ import { useState } from "react";
 import { Property, enquiriesApi, inspectionsApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import ShortStayBookingModal from '@/components/ShortStayBookingModal';
 
 interface PropertyDetailProps {
   property: Property;
@@ -17,45 +17,48 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
   const { user, token } = useAuth();
   const router = useRouter();
 
-  const [activeImg, setActiveImg] = useState(0);
-  const [tour360, setTour360] = useState(false);
+  const [activeImg, setActiveImg]   = useState(0);
+  const [tour360, setTour360]       = useState(false);
   const [tourOffset, setTourOffset] = useState(0);
-  const [dragStart, setDragStart] = useState<number | null>(null);
+  const [dragStart, setDragStart]   = useState<number | null>(null);
   const [downPayment, setDownPayment] = useState(20);
-  const [loanTerm, setLoanTerm] = useState(property.mortgage_term || 20);
-  const [rate, setRate] = useState(property.mortgage_rate || 18);
+  const [loanTerm, setLoanTerm]     = useState(property.mortgage_term || 20);
+  const [rate, setRate]             = useState(property.mortgage_rate || 18);
 
-// Inspection state
-const [showInspection, setShowInspection] = useState(false);
-const [inspectionForm, setInspectionForm] = useState({
-  preferred_date: '',
-  preferred_time: '',
-  message: '',
-  phone_number: '',
-  provider: 'mtn',
-});
-const [inspectionLoading, setInspectionLoading] = useState(false);
-const [inspectionBooked, setInspectionBooked] = useState(false);
-const [inspectionError, setInspectionError] = useState('');
+  // Short stay
+  const [showShortStay, setShowShortStay] = useState(false);
+
+  // Inspection state
+  const [showInspection, setShowInspection] = useState(false);
+  const [inspectionForm, setInspectionForm] = useState({
+    preferred_date: '', preferred_time: '', message: '', phone_number: '', provider: 'mtn',
+  });
+  const [inspectionLoading, setInspectionLoading] = useState(false);
+  const [inspectionBooked, setInspectionBooked]   = useState(false);
+  const [inspectionError, setInspectionError]     = useState('');
 
   // Enquiry state
-  const [showEnquiry, setShowEnquiry] = useState(false);
+  const [showEnquiry, setShowEnquiry]     = useState(false);
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [enquiryLoading, setEnquiryLoading] = useState(false);
-  const [enquirySent, setEnquirySent] = useState(false);
-  const [enquiryError, setEnquiryError] = useState('');
+  const [enquirySent, setEnquirySent]     = useState(false);
+  const [enquiryError, setEnquiryError]   = useState('');
 
   const galleryImages = property.images?.length > 0
     ? property.images
     : ['https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80'];
 
-  const price = (property.amenities?.price as number) || 0;
+  const price       = (property.amenities?.price as number) || 0;
+  const dailyRate   = (property.amenities?.daily_rate as number) || 0;
+  const maxGuests   = (property.amenities?.max_guests as number) || 0;
+  const minNights   = (property.amenities?.min_nights as number) || 1;
+  const isShortStay = property.transaction_type_id === 3;
 
   const monthlyPayment = (() => {
     if (!price) return 0;
-    const principal = price * (1 - downPayment / 100);
+    const principal   = price * (1 - downPayment / 100);
     const monthlyRate = rate / 100 / 12;
-    const n = loanTerm * 12;
+    const n           = loanTerm * 12;
     if (monthlyRate === 0) return Math.round(principal / n);
     return Math.round(principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1));
   })();
@@ -84,12 +87,12 @@ const [inspectionError, setInspectionError] = useState('');
     setInspectionError('');
     try {
       await inspectionsApi.book({
-        property_id: property.id,
+        property_id:    property.id,
         preferred_date: inspectionForm.preferred_date,
         preferred_time: inspectionForm.preferred_time,
-        message: inspectionForm.message,
-        phone_number: inspectionForm.phone_number,
-        provider: inspectionForm.provider,
+        message:        inspectionForm.message,
+        phone_number:   inspectionForm.phone_number,
+        provider:       inspectionForm.provider,
       }, token);
       setInspectionBooked(true);
     } catch (err: unknown) {
@@ -112,25 +115,33 @@ const [inspectionError, setInspectionError] = useState('');
     { key: 'swimming_pool', label: '🏊 Pool' },
     { key: 'furnished', label: '🛋️ Furnished' },
     { key: 'internet', label: '📶 Internet' },
+    { key: 'wifi', label: '📶 WiFi' },
     { key: 'cctv', label: '📹 CCTV' },
     { key: 'elevator', label: '🛗 Elevator' },
+    { key: 'air_conditioning', label: '❄️ Air Con' },
+    { key: 'kitchen', label: '🍳 Kitchen' },
+    { key: 'washer', label: '🫧 Washer' },
+    { key: 'tv', label: '📺 TV' },
   ];
 
   return (
     <div className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 120px' }}>
+
       <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, marginBottom: 24, padding: 0 }}>
         <Icons.ChevronLeft />
         <span>Back to Listings</span>
       </button>
 
       {/* Availability banner */}
-      {availability === 'taken' && (
+      {availability === 'taken' && !isShortStay && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '12px 16px', marginBottom: 20, fontSize: 13, textAlign: 'center' }}>
           ⚠️ This property has been marked as <strong>taken</strong> and may no longer be available.
         </div>
       )}
 
       <div className="detail-layout" style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+
+        {/* ── LEFT COLUMN ── */}
         <div style={{ flex: '1 1 580px' }}>
 
           {/* Gallery */}
@@ -140,8 +151,7 @@ const [inspectionError, setInspectionError] = useState('');
                 onMouseDown={e => setDragStart(e.clientX)}
                 onMouseMove={e => { if (dragStart !== null) { setTourOffset(o => o + (e.clientX - dragStart) * 0.3); setDragStart(e.clientX); } }}
                 onMouseUp={() => setDragStart(null)}
-                style={{ cursor: 'grab', height: '100%', overflow: 'hidden', position: 'relative' }}
-              >
+                style={{ cursor: 'grab', height: '100%', overflow: 'hidden', position: 'relative' }}>
                 <div style={{ transform: `translateX(${tourOffset}px)`, height: '100%', width: '300%', background: 'linear-gradient(90deg, #1a1a1a, #333, #1a1a1a)' }} />
                 <div style={{ position: 'absolute', top: 16, left: 16, background: 'rgba(0,0,0,0.6)', padding: '6px 12px', color: 'var(--gold)', fontSize: 11 }}>
                   360° TOUR — DRAG TO EXPLORE
@@ -165,41 +175,33 @@ const [inspectionError, setInspectionError] = useState('');
             ))}
           </div>
 
-          {/* Title + location */}
+          {/* Title */}
           <h2 className="font-serif" style={{ fontSize: 36, fontWeight: 300 }}>{property.title}</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 20 }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-              📍 {property.address || property.location}
-            </p>
-            {property.agent_verified && (
-              <span style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(201,168,76,0.3)', whiteSpace: 'nowrap' }}>
-                ✓ Verified Agent
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 20, flexWrap: 'wrap' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>📍 {property.address || property.location}</p>
+            {isShortStay && (
+              <span style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(201,168,76,0.3)' }}>
+                🏨 Short Stay
               </span>
             )}
           </div>
 
-          {/* Quick stats row */}
+          {/* Quick stats */}
           <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', paddingBottom: 20, marginBottom: 20, flexWrap: 'wrap' }}>
-            {property.bedrooms !== undefined && property.bedrooms > 0 && (
-              <span>🛏 {property.bedrooms} Beds</span>
-            )}
-            {property.bathrooms !== undefined && property.bathrooms > 0 && (
-              <span>🚿 {property.bathrooms} Baths</span>
-            )}
-            {property.square_footage && (
-              <span>📐 {property.square_footage.toLocaleString()} Sqft</span>
-            )}
+            {property.bedrooms !== undefined && property.bedrooms > 0 && <span>🛏 {property.bedrooms} Beds</span>}
+            {property.bathrooms !== undefined && property.bathrooms > 0 && <span>🚿 {property.bathrooms} Baths</span>}
+            {property.square_footage && <span>📐 {property.square_footage.toLocaleString()} Sqft</span>}
+            {isShortStay && maxGuests > 0 && <span>👥 Up to {maxGuests} guests</span>}
+            {isShortStay && minNights > 1 && <span>🌙 Min {minNights} nights</span>}
           </div>
 
           {/* Description */}
-          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 28 }}>
-            {property.description}
-          </p>
+          <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 28 }}>{property.description}</p>
 
-          {/* ── PROPERTY HIGHLIGHTS (replaces AI concierge) ── */}
+          {/* Highlights */}
           <div style={{ border: '1px solid var(--border)', borderRadius: 2, marginBottom: 28 }}>
             <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Property Highlights
+              {isShortStay ? 'What this place offers' : 'Property Highlights'}
             </div>
             <div style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {amenityTags.filter(a => property.amenities?.[a.key]).map(a => (
@@ -207,7 +209,6 @@ const [inspectionError, setInspectionError] = useState('');
                   {a.label}
                 </span>
               ))}
-              {/* Commercial extras */}
               {(property.amenities?.floors as number) > 0 && (
                 <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2 }}>
                   🏢 {property.amenities?.floors as number} Floor{(property.amenities?.floors as number) > 1 ? 's' : ''}
@@ -218,17 +219,13 @@ const [inspectionError, setInspectionError] = useState('');
                   🚪 {property.amenities.office_units as number} Units
                 </span>
               )}
-              {/* Land extras */}
               {property.amenities?.zoning && (
                 <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2, textTransform: 'capitalize' }}>
                   🗺️ {String(property.amenities.zoning)} Zoning
                 </span>
               )}
-              {/* Empty state */}
               {!amenityTags.some(a => property.amenities?.[a.key]) && !property.amenities?.floors && !property.amenities?.zoning && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                  No highlights listed for this property.
-                </span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>No highlights listed for this property.</span>
               )}
             </div>
           </div>
@@ -238,85 +235,132 @@ const [inspectionError, setInspectionError] = useState('');
         {/* ── SIDEBAR ── */}
         <div className="detail-sidebar" style={{ flex: '0 0 300px' }}>
 
-          {/* Price */}
-          {price > 0 && (
+          {/* Price / Rate */}
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
+            {isShortStay ? (
+              <>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  Nightly Rate
+                </div>
+                <div style={{ fontSize: 28, color: 'var(--gold)', fontFamily: 'Cormorant Garamond, serif' }}>
+                  {dailyRate > 0 ? `${property.currency || 'UGX'} ${dailyRate.toLocaleString()}` : 'Rate on request'}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>per night</div>
+                {minNights > 1 && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Minimum stay: {minNights} nights
+                  </div>
+                )}
+              </>
+            ) : price > 0 ? (
+              <>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {property.transaction_type_id === 2 ? 'Monthly Rent' : 'Asking Price'}
+                </div>
+                <div style={{ fontSize: 28, color: 'var(--gold)', fontFamily: 'Cormorant Garamond, serif' }}>
+                  {property.currency || 'UGX'} {price.toLocaleString()}
+                </div>
+                {property.transaction_type_id === 2 && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>per month</div>
+                )}
+              </>
+            ) : null}
+          </div>
+
+          {/* ── SHORT STAY BOOKING CARD ── */}
+          {isShortStay && (
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                {property.transaction_type_id === 2 ? 'Monthly Rent' : 'Asking Price'}
+              <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 8 }}>Book this Space</h3>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.6 }}>
+                {dailyRate > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span>Nightly rate</span>
+                    <strong style={{ color: 'var(--gold)' }}>{property.currency || 'UGX'} {dailyRate.toLocaleString()}</strong>
+                  </div>
+                )}
+                {maxGuests > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span>Max guests</span>
+                    <span>{maxGuests}</span>
+                  </div>
+                )}
+                {minNights > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Min nights</span>
+                    <span>{minNights}</span>
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: 28, color: 'var(--gold)', fontFamily: 'Cormorant Garamond, serif' }}>
-                {property.currency || 'UGX'} {price.toLocaleString()}
-              </div>
-              {property.transaction_type_id === 2 && (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>per month</div>
+              {!user ? (
+                <button onClick={() => router.push('/login')}
+                  style={{ width: '100%', background: 'var(--gold)', border: 'none', color: '#000', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  Sign In to Book
+                </button>
+              ) : (
+                <button onClick={() => setShowShortStay(true)}
+                  style={{ width: '100%', background: 'var(--gold)', border: 'none', color: '#000', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  🏨 Check Availability & Book
+                </button>
               )}
             </div>
           )}
 
-          {/* Contact Agent */}
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
-            <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 16 }}>Contact Agent</h3>
-
-            {!user ? (
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-                  Sign in to contact the agent about this property.
-                </p>
-                <button onClick={() => router.push('/login')}
-                  style={{ width: '100%', background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  Sign In to Enquire
-                </button>
-              </div>
-            ) : enquirySent ? (
-              <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
-                <p style={{ color: '#22c55e', fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Enquiry Sent!</p>
-                <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>The agent will get back to you shortly.</p>
-                <button onClick={() => { setEnquirySent(false); setShowEnquiry(false); }}
-                  style={{ marginTop: 12, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px 16px', fontSize: 11, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  Send Another
-                </button>
-              </div>
-            ) : showEnquiry ? (
-              <form onSubmit={handleEnquiry} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {enquiryError && (
-                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '8px 12px', fontSize: 12 }}>
-                    {enquiryError}
-                  </div>
-                )}
-                <textarea
-                  value={enquiryMessage}
-                  onChange={e => setEnquiryMessage(e.target.value)}
-                  required rows={4}
-                  placeholder={`Hi, I'm interested in ${property.title}. Could you provide more details?`}
-                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '10px 12px', fontSize: 13, resize: 'vertical', fontFamily: "'DM Sans', sans-serif", outline: 'none' }}
-                />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" onClick={() => setShowEnquiry(false)}
-                    style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '10px', fontSize: 11, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={enquiryLoading}
-                    style={{ flex: 2, background: enquiryLoading ? 'rgba(201,168,76,0.5)' : 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '10px', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: enquiryLoading ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                    {enquiryLoading ? 'Sending...' : 'Send Enquiry'}
+          {/* ── CONTACT AGENT (non-short-stay) ── */}
+          {!isShortStay && (
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
+              <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 16 }}>Contact Agent</h3>
+              {!user ? (
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>Sign in to contact the agent about this property.</p>
+                  <button onClick={() => router.push('/login')}
+                    style={{ width: '100%', background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                    Sign In to Enquire
                   </button>
                 </div>
-              </form>
-            ) : (
-              <button onClick={() => setShowEnquiry(true)}
-                style={{ width: '100%', background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                📩 Send Enquiry
-              </button>
-            )}
-          </div>
+              ) : enquirySent ? (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+                  <p style={{ color: '#22c55e', fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Enquiry Sent!</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>The agent will get back to you shortly.</p>
+                  <button onClick={() => { setEnquirySent(false); setShowEnquiry(false); }}
+                    style={{ marginTop: 12, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px 16px', fontSize: 11, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                    Send Another
+                  </button>
+                </div>
+              ) : showEnquiry ? (
+                <form onSubmit={handleEnquiry} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {enquiryError && (
+                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '8px 12px', fontSize: 12 }}>{enquiryError}</div>
+                  )}
+                  <textarea value={enquiryMessage} onChange={e => setEnquiryMessage(e.target.value)} required rows={4}
+                    placeholder={`Hi, I'm interested in ${property.title}. Could you provide more details?`}
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '10px 12px', fontSize: 13, resize: 'vertical', fontFamily: "'DM Sans', sans-serif", outline: 'none' }} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" onClick={() => setShowEnquiry(false)}
+                      style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '10px', fontSize: 11, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={enquiryLoading}
+                      style={{ flex: 2, background: enquiryLoading ? 'rgba(201,168,76,0.5)' : 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '10px', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: enquiryLoading ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                      {enquiryLoading ? 'Sending...' : 'Send Enquiry'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button onClick={() => setShowEnquiry(true)}
+                  style={{ width: '100%', background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  📩 Send Enquiry
+                </button>
+              )}
+            </div>
+          )}
 
-
-          {/* Book Inspection */}
-          {user && availability !== 'taken' && (
+          {/* ── BOOK INSPECTION (non-short-stay only) ── */}
+          {!isShortStay && user && availability !== 'taken' && (
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
               <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 8 }}>Book Inspection</h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
-                Visit this property in person. A refundable fee of <strong style={{ color: 'var(--gold)' }}>UGX 2,000</strong> confirms your booking.
+                Visit this property in person. A fee of <strong style={{ color: 'var(--gold)' }}>UGX 2,000</strong> confirms your booking.
               </p>
 
               {inspectionBooked ? (
@@ -332,61 +376,42 @@ const [inspectionError, setInspectionError] = useState('');
                       {inspectionError}
                     </div>
                   )}
-
                   <div>
                     <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preferred Date *</label>
-                    <input type="date" required
-                      min={new Date().toISOString().split('T')[0]}
+                    <input type="date" required min={new Date().toISOString().split('T')[0]}
                       value={inspectionForm.preferred_date}
                       onChange={e => setInspectionForm(f => ({ ...f, preferred_date: e.target.value }))}
                       style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preferred Time *</label>
-                    <select required
-                      value={inspectionForm.preferred_time}
+                    <select required value={inspectionForm.preferred_time}
                       onChange={e => setInspectionForm(f => ({ ...f, preferred_time: e.target.value }))}
                       style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif" }}>
                       <option value="">Select a time</option>
-                      <option value="8:00 AM">8:00 AM</option>
-                      <option value="9:00 AM">9:00 AM</option>
-                      <option value="10:00 AM">10:00 AM</option>
-                      <option value="11:00 AM">11:00 AM</option>
-                      <option value="12:00 PM">12:00 PM</option>
-                      <option value="2:00 PM">2:00 PM</option>
-                      <option value="3:00 PM">3:00 PM</option>
-                      <option value="4:00 PM">4:00 PM</option>
-                      <option value="5:00 PM">5:00 PM</option>
+                      {['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM'].map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
                     </select>
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Note (optional)</label>
-                    <textarea rows={2}
-                      value={inspectionForm.message}
+                    <textarea rows={2} value={inspectionForm.message}
                       onChange={e => setInspectionForm(f => ({ ...f, message: e.target.value }))}
                       placeholder="Any specific requests..."
                       style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif", resize: 'none', boxSizing: 'border-box' }} />
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Mobile Money Number *</label>
-                    <input type="tel" required
-                      value={inspectionForm.phone_number}
+                    <input type="tel" required value={inspectionForm.phone_number}
                       onChange={e => setInspectionForm(f => ({ ...f, phone_number: e.target.value }))}
                       placeholder="+256 700 000 000"
                       style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Pay With</label>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                      {[
-                        { id: 'mtn', label: 'MTN', color: '#f59e0b' },
-                        { id: 'airtel', label: 'Airtel', color: '#ef4444' },
-                        { id: 'mpesa', label: 'M-Pesa', color: '#22c55e' },
-                      ].map(p => (
+                      {[{ id: 'mtn', label: 'MTN', color: '#f59e0b' }, { id: 'airtel', label: 'Airtel', color: '#ef4444' }, { id: 'mpesa', label: 'M-Pesa', color: '#22c55e' }].map(p => (
                         <div key={p.id} onClick={() => setInspectionForm(f => ({ ...f, provider: p.id }))}
                           style={{ padding: '6px 4px', textAlign: 'center', border: `1px solid ${inspectionForm.provider === p.id ? p.color : 'var(--border)'}`, background: inspectionForm.provider === p.id ? `${p.color}18` : 'transparent', cursor: 'pointer', borderRadius: 2 }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: inspectionForm.provider === p.id ? p.color : 'var(--text-muted)' }}>{p.label}</div>
@@ -394,7 +419,6 @@ const [inspectionError, setInspectionError] = useState('');
                       ))}
                     </div>
                   </div>
-
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <button type="button" onClick={() => setShowInspection(false)}
                       style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px', fontSize: 11, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
@@ -405,7 +429,6 @@ const [inspectionError, setInspectionError] = useState('');
                       {inspectionLoading ? 'Booking...' : 'Pay UGX 2,000 & Book'}
                     </button>
                   </div>
-
                   <p style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>
                     In development mode, payment is confirmed instantly.
                   </p>
@@ -419,46 +442,32 @@ const [inspectionError, setInspectionError] = useState('');
             </div>
           )}
 
-          {/* Mortgage Calculator — only if agent enabled it */}
-          {property.mortgage_available && price > 0 && (
+          {/* ── MORTGAGE CALCULATOR ── */}
+          {!isShortStay && property.mortgage_available && price > 0 && (
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
-              <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 16 }}>
-                Mortgage Calculator
-              </h3>
+              <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 16 }}>Mortgage Calculator</h3>
               {monthlyPayment > 0 && (
                 <div style={{ fontSize: 24, color: 'var(--gold)', marginBottom: 16 }}>
                   {property.currency || 'UGX'} {monthlyPayment.toLocaleString()}/mo
                 </div>
               )}
-              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Down Payment: {downPayment}%
-              </label>
-              <input type="range" min="5" max="50" step="5" value={downPayment}
-                onChange={e => setDownPayment(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: 12 }} />
-              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Interest Rate: {rate}%
-              </label>
-              <input type="range" min="3" max="30" step="0.5" value={rate}
-                onChange={e => setRate(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: 12 }} />
-              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Loan Term: {loanTerm} years
-              </label>
-              <input type="range" min="5" max="30" step="5" value={loanTerm}
-                onChange={e => setLoanTerm(Number(e.target.value))}
-                style={{ width: '100%' }} />
+              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Down Payment: {downPayment}%</label>
+              <input type="range" min="5" max="50" step="5" value={downPayment} onChange={e => setDownPayment(Number(e.target.value))} style={{ width: '100%', marginBottom: 12 }} />
+              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Interest Rate: {rate}%</label>
+              <input type="range" min="3" max="30" step="0.5" value={rate} onChange={e => setRate(Number(e.target.value))} style={{ width: '100%', marginBottom: 12 }} />
+              <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loan Term: {loanTerm} years</label>
+              <input type="range" min="5" max="30" step="5" value={loanTerm} onChange={e => setLoanTerm(Number(e.target.value))} style={{ width: '100%' }} />
             </div>
           )}
 
-          {/* Property Details */}
+          {/* ── PROPERTY DETAILS ── */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 20 }}>
             <h3 className="font-serif" style={{ fontSize: 18, fontWeight: 400, marginBottom: 12 }}>Property Details</h3>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Availability</span>
-                <span style={{ color: availability === 'taken' ? '#f87171' : '#22c55e', textTransform: 'capitalize' }}>
-                  {availability === 'taken' ? 'Taken' : 'Available'}
+                <span>Type</span>
+                <span style={{ color: 'var(--text)', textTransform: 'capitalize' }}>
+                  {isShortStay ? 'Short Stay' : property.transaction_type_id === 2 ? 'For Rent' : 'For Sale'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -467,32 +476,32 @@ const [inspectionError, setInspectionError] = useState('');
               </div>
               {property.bedrooms !== undefined && property.bedrooms > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Bedrooms</span>
-                  <span style={{ color: 'var(--text)' }}>{property.bedrooms}</span>
+                  <span>Bedrooms</span><span style={{ color: 'var(--text)' }}>{property.bedrooms}</span>
                 </div>
               )}
               {property.bathrooms !== undefined && property.bathrooms > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Bathrooms</span>
-                  <span style={{ color: 'var(--text)' }}>{property.bathrooms}</span>
+                  <span>Bathrooms</span><span style={{ color: 'var(--text)' }}>{property.bathrooms}</span>
                 </div>
               )}
-              {property.square_footage && (
+              {property.square_footage && !isShortStay && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Area</span>
-                  <span style={{ color: 'var(--text)' }}>{property.square_footage.toLocaleString()} sqft</span>
+                  <span>Area</span><span style={{ color: 'var(--text)' }}>{property.square_footage.toLocaleString()} sqft</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Listing Type</span>
-                <span style={{ color: 'var(--text)' }}>
-                  {property.transaction_type_id === 2 ? 'For Rent' : 'For Sale'}
-                </span>
-              </div>
+              {isShortStay && maxGuests > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Max Guests</span><span style={{ color: 'var(--text)' }}>{maxGuests}</span>
+                </div>
+              )}
+              {isShortStay && minNights > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Min Nights</span><span style={{ color: 'var(--text)' }}>{minNights}</span>
+                </div>
+              )}
               {property.currency && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Currency</span>
-                  <span style={{ color: 'var(--text)' }}>{property.currency}</span>
+                  <span>Currency</span><span style={{ color: 'var(--text)' }}>{property.currency}</span>
                 </div>
               )}
             </div>
@@ -500,6 +509,15 @@ const [inspectionError, setInspectionError] = useState('');
 
         </div>
       </div>
+
+      {/* Short Stay Booking Modal */}
+      {showShortStay && (
+        <ShortStayBookingModal
+          property={property}
+          onClose={() => setShowShortStay(false)}
+        />
+      )}
+
     </div>
   );
 }

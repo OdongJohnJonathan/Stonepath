@@ -14,3 +14,6 @@ export type { UserProfile, UpdateProfilePayload } from "./users";
 export type { Enquiry, SendEnquiryPayload } from "./enquiries";
 export type { AdminUser } from "./admin";
 export type { LoginPayload, RegisterPayload, AuthResponse } from "./auth";
+
+export { shortStaysApi } from "./shortStays";
+export type { ShortStayBooking, BookShortStayPayload } from "./shortStays";

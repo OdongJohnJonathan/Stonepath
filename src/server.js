@@ -15,6 +15,7 @@ import usersRoutes from "./routes/users.routes.js";
 import savedRoutes from "./routes/saved.routes.js";
 import enquiriesRoutes from "./routes/enquiries.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import shortStaysRoutes from "./routes/shortStays.routes.js";
 import paymentsRoutes from "./routes/payments.routes.js";
 import inspectionsRoutes from "./routes/inspections.routes.js";
 
@@ -100,6 +101,7 @@ app.use("/saved", savedRoutes);
 app.use("/enquiries", enquiriesRoutes);
 app.use("/admin", adminRoutes);
 app.use("/inspections", inspectionsRoutes);
+app.use("/short-stays", shortStaysRoutes);
 
 // ── HEALTH CHECK ──────────────────────────────────
 app.get("/health", (req, res) => res.json({

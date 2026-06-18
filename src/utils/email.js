@@ -339,3 +339,89 @@ export const sendInspectionConfirmationToBuyer = async ({
     `,
   });
 };
+
+// ── SHORT STAY: notify host ────────────────────────
+const fmtDate = (d) =>
+  new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+const fmtMoney = (amount, currency = 'UGX') =>
+  `${currency} ${Number(amount).toLocaleString()}`;
+
+export const sendShortStayBookingToHost = async ({
+  hostEmail, hostFirstName, guestName, guestEmail, guestPhone,
+  propertyTitle, checkIn, checkOut, nights, guests, totalAmount, currency, message,
+}) => {
+  await resend.emails.send({
+    from: FROM, to: hostEmail,
+    subject: `Short stay booked — "${propertyTitle}"`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;">
+        <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath™</h1>
+        <h2 style="font-size:20px;font-weight:400;margin-bottom:4px;">New Short Stay Booking</h2>
+        <p style="color:#8892a4;font-size:13px;margin-bottom:28px;">A guest has booked your property.</p>
+        <div style="background:#1a1a1a;border-left:3px solid #c9a84c;padding:16px;margin-bottom:16px;">
+          <div style="font-size:11px;color:#c9a84c;text-transform:uppercase;margin-bottom:6px;">Property</div>
+          <div style="font-size:16px;">${propertyTitle}</div>
+        </div>
+        <div style="background:#1a1a1a;border-left:3px solid #22c55e;padding:16px;margin-bottom:16px;">
+          <div style="font-size:11px;color:#22c55e;text-transform:uppercase;margin-bottom:12px;">Stay Details</div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Check-in:</span> <strong>${fmtDate(checkIn)}</strong></div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Check-out:</span> <strong>${fmtDate(checkOut)}</strong></div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Nights:</span> <strong>${nights}</strong></div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Guests:</span> <strong>${guests}</strong></div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #333;">
+            <span style="color:#8892a4;">Total:</span>
+            <strong style="color:#c9a84c;font-size:16px;"> ${fmtMoney(totalAmount, currency)}</strong>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;padding:16px;margin-bottom:24px;">
+          <div style="font-size:11px;color:#8892a4;text-transform:uppercase;margin-bottom:12px;">Guest Details</div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Name:</span> ${guestName}</div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Email:</span> <a href="mailto:${guestEmail}" style="color:#c9a84c;">${guestEmail}</a></div>
+          ${guestPhone ? `<div><span style="color:#8892a4;">Phone:</span> ${guestPhone}</div>` : ''}
+          ${message ? `<div style="margin-top:10px;"><span style="color:#8892a4;">Message:</span><p style="margin:6px 0 0;color:#fff;">${message}</p></div>` : ''}
+        </div>
+        <a href="${FRONTEND_URL}" style="background:#c9a84c;color:#000;padding:14px 32px;text-decoration:none;font-weight:600;font-size:13px;text-transform:uppercase;display:inline-block;">View on Stonepath</a>
+        <p style="color:#555;font-size:12px;margin-top:32px;">Hi ${hostFirstName}, confirm this booking from your Stonepath dashboard.</p>
+      </div>`,
+  });
+};
+
+// ── SHORT STAY: confirm to guest ──────────────────
+export const sendShortStayConfirmationToGuest = async ({
+  guestEmail, guestFirstName, propertyTitle, checkIn, checkOut,
+  nights, guests, totalAmount, currency, hostName, hostEmail, hostPhone,
+}) => {
+  await resend.emails.send({
+    from: FROM, to: guestEmail,
+    subject: `Booking received — "${propertyTitle}"`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;">
+        <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath™</h1>
+        <h2 style="font-size:20px;font-weight:400;margin-bottom:4px;">Booking Received!</h2>
+        <p style="color:#8892a4;font-size:13px;margin-bottom:28px;">Your short stay is pending confirmation from the host.</p>
+        <div style="background:#1a1a1a;border-left:3px solid #c9a84c;padding:16px;margin-bottom:16px;">
+          <div style="font-size:11px;color:#c9a84c;text-transform:uppercase;margin-bottom:6px;">Property</div>
+          <div style="font-size:16px;">${propertyTitle}</div>
+        </div>
+        <div style="background:#1a1a1a;border-left:3px solid #22c55e;padding:16px;margin-bottom:16px;">
+          <div style="font-size:11px;color:#22c55e;text-transform:uppercase;margin-bottom:12px;">Your Stay</div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Check-in:</span> <strong>${fmtDate(checkIn)}</strong></div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Check-out:</span> <strong>${fmtDate(checkOut)}</strong></div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Nights:</span> <strong>${nights}</strong></div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Guests:</span> <strong>${guests}</strong></div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #333;">
+            <span style="color:#8892a4;">Total:</span>
+            <strong style="color:#c9a84c;font-size:16px;"> ${fmtMoney(totalAmount, currency)}</strong>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;padding:16px;margin-bottom:24px;">
+          <div style="font-size:11px;color:#8892a4;text-transform:uppercase;margin-bottom:12px;">Host Contact</div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Name:</span> ${hostName}</div>
+          <div style="margin-bottom:6px;"><span style="color:#8892a4;">Email:</span> <a href="mailto:${hostEmail}" style="color:#c9a84c;">${hostEmail}</a></div>
+          ${hostPhone ? `<div><span style="color:#8892a4;">Phone:</span> ${hostPhone}</div>` : ''}
+        </div>
+        <a href="${FRONTEND_URL}" style="background:#c9a84c;color:#000;padding:14px 32px;text-decoration:none;font-weight:600;font-size:13px;text-transform:uppercase;display:inline-block;">View on Stonepath</a>
+        <p style="color:#555;font-size:12px;margin-top:32px;">Hi ${guestFirstName}, the host will confirm shortly.</p>
+      </div>`,
+  });
+};

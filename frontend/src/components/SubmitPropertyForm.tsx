@@ -27,10 +27,6 @@ const getCurrency = (location: string) => {
   return 'UGX';
 };
 
-const RESIDENTIAL = 1;
-const COMMERCIAL = 2;
-const LAND = 3;
-
 export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   const { token } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +36,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     description: "",
     location: "",
     address: "",
+    // regular property fields
     bedrooms: "",
     bathrooms: "",
     square_footage: "",
@@ -52,6 +49,11 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     zoning: "",
     floors: "",
     office_units: "",
+    // short stay fields
+    daily_rate: "",
+    max_guests: "",
+    min_nights: "",
+    room_type: "entire_place",
   });
 
   const [amenities, setAmenities] = useState({
@@ -67,6 +69,10 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     internet: false,
     cctv: false,
     elevator: false,
+    air_conditioning: false,
+    kitchen: false,
+    washer: false,
+    tv: false,
   });
 
   const [latitude, setLatitude] = useState<number | null>(null);
@@ -77,10 +83,11 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const isShortStay = form.transaction_type_id === "3";
   const propertyType = parseInt(form.property_type_id);
-  const isResidential = propertyType === RESIDENTIAL;
-  const isCommercial = propertyType === COMMERCIAL;
-  const isLand = propertyType === LAND;
+  const isResidential = propertyType === 1 && !isShortStay;
+  const isCommercial  = propertyType === 2 && !isShortStay;
+  const isLand        = propertyType === 3 && !isShortStay;
   const currency = getCurrency(form.location);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -135,18 +142,23 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
         setUploading(false);
       }
 
-      const amenitiesData: Record<string, unknown> = {
-        price: parseInt(form.price) || 0,
-        ...amenities,
-      };
+      const amenitiesData: Record<string, unknown> = { ...amenities };
 
-      if (isCommercial) {
-        amenitiesData.floors = parseInt(form.floors) || 0;
-        amenitiesData.office_units = parseInt(form.office_units) || 0;
-      }
-
-      if (isLand) {
-        amenitiesData.zoning = form.zoning;
+      if (isShortStay) {
+        amenitiesData.daily_rate  = parseInt(form.daily_rate)  || 0;
+        amenitiesData.max_guests  = parseInt(form.max_guests)  || 4;
+        amenitiesData.min_nights  = parseInt(form.min_nights)  || 1;
+        amenitiesData.room_type   = form.room_type;
+        amenitiesData.price       = 0;
+      } else {
+        amenitiesData.price = parseInt(form.price) || 0;
+        if (isCommercial) {
+          amenitiesData.floors       = parseInt(form.floors) || 0;
+          amenitiesData.office_units = parseInt(form.office_units) || 0;
+        }
+        if (isLand) {
+          amenitiesData.zoning = form.zoning;
+        }
       }
 
       await propertiesApi.create({
@@ -155,17 +167,17 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
         location: form.location,
         address: form.address,
         bedrooms: isResidential ? parseInt(form.bedrooms) || 0 : undefined,
-        bathrooms: isResidential || isCommercial ? parseInt(form.bathrooms) || 0 : undefined,
-        square_footage: parseInt(form.square_footage) || 0,
-        property_type_id: propertyType,
+        bathrooms: (isResidential || isCommercial) ? parseInt(form.bathrooms) || 0 : undefined,
+        square_footage: !isShortStay ? parseInt(form.square_footage) || 0 : undefined,
+        property_type_id: isShortStay ? 1 : propertyType, // short stays default to residential type
         transaction_type_id: parseInt(form.transaction_type_id),
         images: imageUrls,
         amenities: amenitiesData,
         currency,
-        mortgage_available: form.mortgage_available,
-        mortgage_rate: form.mortgage_available ? parseFloat(form.mortgage_rate) || 0 : undefined,
-        mortgage_term: form.mortgage_available ? parseInt(form.mortgage_term) || 20 : undefined,
-        latitude: latitude || undefined,
+        mortgage_available: isResidential ? form.mortgage_available : false,
+        mortgage_rate: isResidential && form.mortgage_available ? parseFloat(form.mortgage_rate) || 0 : undefined,
+        mortgage_term: isResidential && form.mortgage_available ? parseInt(form.mortgage_term) || 20 : undefined,
+        latitude:  latitude  || undefined,
         longitude: longitude || undefined,
       }, token);
 
@@ -179,44 +191,45 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   };
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: "var(--surface)",
-    border: "1px solid var(--border)", padding: "10px 14px",
-    color: "var(--text)", fontSize: 14, outline: "none",
-    fontFamily: "'DM Sans', sans-serif", borderRadius: 2,
-    boxSizing: "border-box",
+    width: "100%", background: "var(--surface)", border: "1px solid var(--border)",
+    padding: "10px 14px", color: "var(--text)", fontSize: 14, outline: "none",
+    fontFamily: "'DM Sans', sans-serif", borderRadius: 2, boxSizing: "border-box",
   };
-
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: 11, letterSpacing: "0.1em",
     textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6,
   };
-
   const sectionTitle = (title: string) => (
     <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12, marginTop: 4, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
       {title}
     </div>
   );
 
-  const amenityList = [
-    { key: 'parking', label: '🚗 Parking' },
-    { key: 'garage', label: '🏠 Garage' },
-    { key: 'gated', label: '🔒 Gated Community' },
-    { key: 'generator', label: '⚡ Generator' },
-    { key: 'solar', label: '☀️ Solar Power' },
-    { key: 'borehole', label: '💧 Borehole' },
-    { key: 'security', label: '👮 Security Guard' },
-    { key: 'swimming_pool', label: '🏊 Swimming Pool' },
-    { key: 'furnished', label: '🛋️ Furnished' },
-    { key: 'internet', label: '📶 Internet/Fibre' },
-    { key: 'cctv', label: '📹 CCTV' },
-    { key: 'elevator', label: '🛗 Elevator' },
+  const regularAmenities = [
+    { key: 'parking', label: '🚗 Parking' }, { key: 'garage', label: '🏠 Garage' },
+    { key: 'gated', label: '🔒 Gated Community' }, { key: 'generator', label: '⚡ Generator' },
+    { key: 'solar', label: '☀️ Solar Power' }, { key: 'borehole', label: '💧 Borehole' },
+    { key: 'security', label: '👮 Security Guard' }, { key: 'swimming_pool', label: '🏊 Swimming Pool' },
+    { key: 'furnished', label: '🛋️ Furnished' }, { key: 'internet', label: '📶 Internet/Fibre' },
+    { key: 'cctv', label: '📹 CCTV' }, { key: 'elevator', label: '🛗 Elevator' },
   ];
 
-  const relevantAmenities = isLand
-    ? amenityList.filter(a => ['borehole', 'gated', 'security'].includes(a.key))
+  const shortStayAmenities = [
+    { key: 'wifi', label: '📶 WiFi' }, { key: 'air_conditioning', label: '❄️ Air Conditioning' },
+    { key: 'kitchen', label: '🍳 Kitchen' }, { key: 'washer', label: '🫧 Washer' },
+    { key: 'tv', label: '📺 TV' }, { key: 'parking', label: '🚗 Parking' },
+    { key: 'swimming_pool', label: '🏊 Pool' }, { key: 'furnished', label: '🛋️ Furnished' },
+    { key: 'security', label: '👮 Security' }, { key: 'generator', label: '⚡ Generator' },
+    { key: 'borehole', label: '💧 Borehole' }, { key: 'gated', label: '🔒 Gated' },
+  ];
+
+  const relevantAmenities = isShortStay
+    ? shortStayAmenities
+    : isLand
+    ? regularAmenities.filter(a => ['borehole','gated','security'].includes(a.key))
     : isCommercial
-    ? amenityList.filter(a => !['furnished', 'swimming_pool'].includes(a.key))
-    : amenityList;
+    ? regularAmenities.filter(a => !['furnished','swimming_pool'].includes(a.key))
+    : regularAmenities;
 
   const isSubmitting = loading || uploading;
 
@@ -224,7 +237,6 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(4px)" }}>
       <div className="modal-card" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", padding: "40px 36px", width: "100%", maxWidth: 640, maxHeight: "92vh", overflowY: "auto" }}>
 
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
           <div>
             <p style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 6 }}>New Listing</p>
@@ -241,20 +253,34 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
-          {/* ── BASIC INFO ── */}
           {sectionTitle('Basic Information')}
 
           <div>
             <label style={labelStyle}>Property Title *</label>
-            <input name="title" value={form.title} onChange={handleChange} required placeholder="e.g. Modern Villa in Kololo" style={inputStyle} />
+            <input name="title" value={form.title} onChange={handleChange} required
+              placeholder={isShortStay ? "e.g. Cozy Studio in Kololo" : "e.g. Modern Villa in Kololo"}
+              style={inputStyle} />
           </div>
 
           <div>
             <label style={labelStyle}>Description *</label>
-            <textarea name="description" value={form.description} onChange={handleChange} required placeholder="Describe the property..." rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+            <textarea name="description" value={form.description} onChange={handleChange} required
+              placeholder={isShortStay ? "Describe your space, what guests can expect..." : "Describe the property..."}
+              rows={3} style={{ ...inputStyle, resize: "vertical" }} />
           </div>
 
-          <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {/* Listing Type — always shown */}
+          <div>
+            <label style={labelStyle}>Listing Type *</label>
+            <select name="transaction_type_id" value={form.transaction_type_id} onChange={handleChange} style={inputStyle}>
+              <option value="1">For Sale</option>
+              <option value="2">For Rent</option>
+              <option value="3">Short Stay</option>
+            </select>
+          </div>
+
+          {/* Property Type — only for non-short-stay */}
+          {!isShortStay && (
             <div>
               <label style={labelStyle}>Property Type *</label>
               <select name="property_type_id" value={form.property_type_id} onChange={handleChange} style={inputStyle}>
@@ -263,16 +289,8 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
                 <option value="3">Land</option>
               </select>
             </div>
-            <div>
-              <label style={labelStyle}>Listing Type *</label>
-              <select name="transaction_type_id" value={form.transaction_type_id} onChange={handleChange} style={inputStyle}>
-                <option value="1">For Sale</option>
-                <option value="2">For Rent</option>
-              </select>
-            </div>
-          </div>
+          )}
 
-          {/* ── LOCATION ── */}
           {sectionTitle('Location')}
 
           <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -292,147 +310,178 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </div>
           )}
 
-          {/* ── MAP PICKER ── */}
           {sectionTitle('Pin Location on Map')}
-          <MapPicker
-            latitude={latitude}
-            longitude={longitude}
-            onChange={(lat, lng) => {
-              setLatitude(lat);
-              setLongitude(lng);
-            }}
-          />
+          <MapPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }} />
 
-          {/* ── PROPERTY DETAILS ── */}
-          {sectionTitle('Property Details')}
+          {/* ── SHORT STAY SPECIFIC FIELDS ── */}
+          {isShortStay && (
+            <>
+              {sectionTitle('Short Stay Details')}
 
-          {isResidential && (
-            <div className="modal-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
               <div>
-                <label style={labelStyle}>Bedrooms *</label>
-                <input name="bedrooms" type="number" min="0" value={form.bedrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Bathrooms *</label>
-                <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Size (sqft)</label>
-                <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} placeholder="0" style={inputStyle} />
-              </div>
-            </div>
-          )}
-
-          {isCommercial && (
-            <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div>
-                <label style={labelStyle}>Total Area (sqft) *</label>
-                <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} required placeholder="0" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Number of Floors</label>
-                <input name="floors" type="number" min="1" value={form.floors} onChange={handleChange} placeholder="1" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Office / Shop Units</label>
-                <input name="office_units" type="number" min="0" value={form.office_units} onChange={handleChange} placeholder="0" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Bathrooms</label>
-                <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} placeholder="0" style={inputStyle} />
-              </div>
-            </div>
-          )}
-
-          {isLand && (
-            <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div>
-                <label style={labelStyle}>Size (sqft or acres) *</label>
-                <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} required placeholder="0" style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Zoning / Land Use</label>
-                <select name="zoning" value={form.zoning} onChange={handleChange} style={inputStyle}>
-                  <option value="">Select zoning</option>
-                  <option value="residential">Residential</option>
-                  <option value="commercial">Commercial</option>
-                  <option value="agricultural">Agricultural</option>
-                  <option value="industrial">Industrial</option>
-                  <option value="mixed">Mixed Use</option>
+                <label style={labelStyle}>Room / Space Type *</label>
+                <select name="room_type" value={form.room_type} onChange={handleChange} style={inputStyle}>
+                  <option value="entire_place">Entire Place (guests have it all to themselves)</option>
+                  <option value="private_room">Private Room (in a shared home)</option>
+                  <option value="shared_room">Shared Room</option>
+                  <option value="studio">Studio Apartment</option>
+                  <option value="villa">Villa / House</option>
+                  <option value="guesthouse">Guesthouse / B&B</option>
+                  <option value="serviced_apartment">Serviced Apartment</option>
                 </select>
               </div>
-            </div>
+
+              <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Bedrooms</label>
+                  <input name="bedrooms" type="number" min="0" value={form.bedrooms} onChange={handleChange} placeholder="e.g. 2" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Bathrooms</label>
+                  <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} placeholder="e.g. 1" style={inputStyle} />
+                </div>
+              </div>
+
+              <div className="modal-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Daily Rate ({currency}) *</label>
+                  <input name="daily_rate" type="number" min="0" value={form.daily_rate} onChange={handleChange}
+                    placeholder="e.g. 150000" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Max Guests</label>
+                  <input name="max_guests" type="number" min="1" max="30" value={form.max_guests}
+                    onChange={handleChange} placeholder="4" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Min Nights</label>
+                  <input name="min_nights" type="number" min="1" value={form.min_nights}
+                    onChange={handleChange} placeholder="1" style={inputStyle} />
+                </div>
+              </div>
+            </>
           )}
 
-          {/* ── PRICING ── */}
-          {sectionTitle('Pricing')}
+          {/* ── REGULAR PROPERTY DETAILS ── */}
+          {!isShortStay && (
+            <>
+              {sectionTitle('Property Details')}
 
-          <div>
-            <label style={labelStyle}>Price ({currency}) *</label>
-            <input name="price" type="number" min="0" value={form.price} onChange={handleChange} required
-              placeholder={currency === 'UGX' ? 'e.g. 450,000,000' : currency === 'KES' ? 'e.g. 15,000,000' : 'e.g. 250,000,000'}
-              style={inputStyle} />
-          </div>
-
-          {isResidential && form.transaction_type_id === '1' && (
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
-                <input type="checkbox" name="mortgage_available" checked={form.mortgage_available} onChange={handleChange}
-                  style={{ width: 16, height: 16, accentColor: 'var(--gold)' }} />
-                Enable mortgage calculator for this property
-              </label>
-
-              {form.mortgage_available && (
-                <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
+              {isResidential && (
+                <div className="modal-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
                   <div>
-                    <label style={labelStyle}>Interest Rate (%)</label>
-                    <input name="mortgage_rate" type="number" min="1" max="30" step="0.5" value={form.mortgage_rate} onChange={handleChange} placeholder="e.g. 18" style={inputStyle} />
+                    <label style={labelStyle}>Bedrooms *</label>
+                    <input name="bedrooms" type="number" min="0" value={form.bedrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Loan Term (years)</label>
-                    <select name="mortgage_term" value={form.mortgage_term} onChange={handleChange} style={inputStyle}>
-                      <option value="5">5 years</option>
-                      <option value="10">10 years</option>
-                      <option value="15">15 years</option>
-                      <option value="20">20 years</option>
-                      <option value="25">25 years</option>
-                      <option value="30">30 years</option>
+                    <label style={labelStyle}>Bathrooms *</label>
+                    <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} required placeholder="0" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Size (sqft)</label>
+                    <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} placeholder="0" style={inputStyle} />
+                  </div>
+                </div>
+              )}
+
+              {isCommercial && (
+                <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div>
+                    <label style={labelStyle}>Total Area (sqft) *</label>
+                    <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} required placeholder="0" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Number of Floors</label>
+                    <input name="floors" type="number" min="1" value={form.floors} onChange={handleChange} placeholder="1" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Office / Shop Units</label>
+                    <input name="office_units" type="number" min="0" value={form.office_units} onChange={handleChange} placeholder="0" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Bathrooms</label>
+                    <input name="bathrooms" type="number" min="0" value={form.bathrooms} onChange={handleChange} placeholder="0" style={inputStyle} />
+                  </div>
+                </div>
+              )}
+
+              {isLand && (
+                <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div>
+                    <label style={labelStyle}>Size (sqft or acres) *</label>
+                    <input name="square_footage" type="number" min="0" value={form.square_footage} onChange={handleChange} required placeholder="0" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Zoning / Land Use</label>
+                    <select name="zoning" value={form.zoning} onChange={handleChange} style={inputStyle}>
+                      <option value="">Select zoning</option>
+                      <option value="residential">Residential</option>
+                      <option value="commercial">Commercial</option>
+                      <option value="agricultural">Agricultural</option>
+                      <option value="industrial">Industrial</option>
+                      <option value="mixed">Mixed Use</option>
                     </select>
                   </div>
                 </div>
               )}
-            </div>
+
+              {sectionTitle('Pricing')}
+
+              <div>
+                <label style={labelStyle}>Price ({currency}) *</label>
+                <input name="price" type="number" min="0" value={form.price} onChange={handleChange} required
+                  placeholder={currency === 'UGX' ? 'e.g. 450,000,000' : 'e.g. 15,000,000'}
+                  style={inputStyle} />
+              </div>
+
+              {isResidential && form.transaction_type_id === '1' && (
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
+                    <input type="checkbox" name="mortgage_available" checked={form.mortgage_available} onChange={handleChange}
+                      style={{ width: 16, height: 16, accentColor: 'var(--gold)' }} />
+                    Enable mortgage calculator for this property
+                  </label>
+                  {form.mortgage_available && (
+                    <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
+                      <div>
+                        <label style={labelStyle}>Interest Rate (%)</label>
+                        <input name="mortgage_rate" type="number" min="1" max="30" step="0.5" value={form.mortgage_rate} onChange={handleChange} placeholder="e.g. 18" style={inputStyle} />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Loan Term (years)</label>
+                        <select name="mortgage_term" value={form.mortgage_term} onChange={handleChange} style={inputStyle}>
+                          {[5,10,15,20,25,30].map(y => <option key={y} value={String(y)}>{y} years</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
-          {/* ── AMENITIES ── */}
           {sectionTitle('Amenities & Features')}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
             {relevantAmenities.map(({ key, label }) => (
               <label key={key} style={{
-                display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-                padding: '8px 10px',
+                display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 10px',
                 border: `1px solid ${amenities[key as keyof typeof amenities] ? 'var(--gold)' : 'var(--border)'}`,
                 borderRadius: 2,
                 background: amenities[key as keyof typeof amenities] ? 'rgba(201,168,76,0.08)' : 'transparent',
                 transition: 'all 0.15s ease', fontSize: 13, color: 'var(--text)'
               }}>
-                <input type="checkbox" checked={amenities[key as keyof typeof amenities]} onChange={() => toggleAmenity(key)}
+                <input type="checkbox" checked={amenities[key as keyof typeof amenities] ?? false} onChange={() => toggleAmenity(key)}
                   style={{ width: 14, height: 14, accentColor: 'var(--gold)' }} />
                 {label}
               </label>
             ))}
           </div>
 
-          {/* ── IMAGES ── */}
           {sectionTitle(`Images (${imageFiles.length}/10)`)}
 
-          <div
-            onDrop={handleDrop}
-            onDragOver={e => e.preventDefault()}
-            onClick={() => fileInputRef.current?.click()}
-            style={{ border: '2px dashed var(--border)', borderRadius: 2, padding: 20, textAlign: "center", cursor: "pointer", background: "var(--surface)" }}
-          >
+          <div onDrop={handleDrop} onDragOver={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()}
+            style={{ border: '2px dashed var(--border)', borderRadius: 2, padding: 20, textAlign: "center", cursor: "pointer", background: "var(--surface)" }}>
             <div style={{ fontSize: 28, marginBottom: 6 }}>📷</div>
             <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 4 }}>Drop images here or click to browse</div>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>JPG, PNG, WEBP — max 5MB each, up to 10 images</div>
@@ -445,11 +494,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
               {imagePreviews.map((src, i) => (
                 <div key={i} style={{ position: 'relative' }}>
                   <img src={src} alt="" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 2 }} />
-                  {i === 0 && (
-                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'var(--gold)', color: '#000', fontSize: 9, padding: '2px 5px', borderRadius: 2, fontWeight: 600 }}>
-                      COVER
-                    </div>
-                  )}
+                  {i === 0 && <div style={{ position: 'absolute', top: 4, left: 4, background: 'var(--gold)', color: '#000', fontSize: 9, padding: '2px 5px', borderRadius: 2, fontWeight: 600 }}>COVER</div>}
                   <button type="button" onClick={() => removeImage(i)}
                     style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: 'white', width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     ✕
@@ -465,7 +510,6 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </div>
           )}
 
-          {/* Buttons */}
           <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
             <button type="button" onClick={onCancel}
               style={{ flex: 1, background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "12px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
