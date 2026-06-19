@@ -18,6 +18,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import shortStaysRoutes from "./routes/shortStays.routes.js";
 import paymentsRoutes from "./routes/payments.routes.js";
 import inspectionsRoutes from "./routes/inspections.routes.js";
+import serviceProvidersRoutes from "./routes/serviceProviders.routes.js";
 
 // Initialize express app
 const app = express();
@@ -102,6 +103,7 @@ app.use("/enquiries", enquiriesRoutes);
 app.use("/admin", adminRoutes);
 app.use("/inspections", inspectionsRoutes);
 app.use("/short-stays", shortStaysRoutes);
+app.use("/service-providers", serviceProvidersRoutes);
 
 // ── HEALTH CHECK ──────────────────────────────────
 app.get("/health", (req, res) => res.json({

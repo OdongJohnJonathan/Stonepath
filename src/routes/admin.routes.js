@@ -5,7 +5,7 @@ import { authenticate } from "../../middleware/auth.js";
 const router = express.Router();
 
 const adminOnly = (req, res, next) => {
-  if (Number(req.user.role) !== 1) {
+  if (![3, 4].includes(Number(req.user.role))) {
     return res.status(403).json({ error: "Admin access required" });
   }
   next();
@@ -31,11 +31,15 @@ router.get("/users", authenticate, adminOnly, async (req, res) => {
 // Change role
 router.put("/users/:id/role", authenticate, adminOnly, async (req, res) => {
   const { role } = req.body;
-  if (![2, 3].includes(Number(role))) {
+  if (![1, 2, 3, 4].includes(Number(role))) {
     return res.status(400).json({ error: "Invalid role" });
   }
   if (req.params.id === req.user.id) {
     return res.status(400).json({ error: "You cannot change your own role" });
+  }
+  // Only a Super Admin can promote/demote another Super Admin
+  if (Number(role) === 4 && Number(req.user.role) !== 4) {
+    return res.status(403).json({ error: "Only a Super Admin can assign Super Admin role" });
   }
   try {
     const result = await pool.query(

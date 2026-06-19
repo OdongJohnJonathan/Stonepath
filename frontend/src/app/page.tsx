@@ -4,6 +4,7 @@ import { Icons } from '@/components/Icons';
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import HeroSection from '@/components/HeroSection';
+import type { HeroSearchParams } from '@/components/HeroSection';
 import PropertyCard from '@/components/PropertyCard';
 import MapView from '@/components/MapView';
 import PropertyDetail from '@/components/PropertyDetail';
@@ -11,6 +12,9 @@ import Dashboard from '@/components/Dashboard';
 import { propertiesApi } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import type { Property } from "@/lib/api";
+import ServicesDirectory from '@/components/ServicesDirectory';
+import ServiceProviderDetail from '@/components/ServiceProviderDetail';
+import type { ServiceProvider } from '@/lib/api/serviceProviders';
 
 export default function LuxeEstate() {
   const router = useRouter();
@@ -24,7 +28,9 @@ export default function LuxeEstate() {
   const [loadingProps, setLoadingProps] = useState(true);
   const [activePin, setActivePin] = useState<string | null>(null);
   const [selectedProp, setSelectedProp] = useState<Property | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<ServiceProvider | null>(null);
   const [filterType, setFilterType] = useState('All');
+  const [heroSearch, setHeroSearch] = useState<HeroSearchParams | null>(null);
 
   // Public listings — approved only
   useEffect(() => {
@@ -34,9 +40,9 @@ export default function LuxeEstate() {
       .finally(() => setLoadingProps(false));
   }, []);
 
-  // Dashboard — all properties including pending (agents & admins only)
+  // Dashboard — all properties including pending (agents, moderators, admins only)
   useEffect(() => {
-    if (token && (Number(user?.role) === 1 || Number(user?.role) === 2)) {
+    if (token && [2, 3, 4].includes(Number(user?.role))) {
       propertiesApi.getAllForDashboard(token)
         .then(setDashboardProperties)
         .catch(console.error);
@@ -45,7 +51,7 @@ export default function LuxeEstate() {
 
   const refreshDashboard = () => {
     propertiesApi.getAll().then(setProperties).catch(console.error);
-    if (token && (Number(user?.role) === 1 || Number(user?.role) === 2)) {
+    if (token && [2, 3, 4].includes(Number(user?.role))) {
       propertiesApi.getAllForDashboard(token).then(setDashboardProperties).catch(console.error);
     }
   };
@@ -54,7 +60,7 @@ export default function LuxeEstate() {
     setSavedIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
   }, []);
 
-  const typeFilters = ['All', 'Residential', 'Commercial', 'Land'];
+  const typeFilters = ['All', 'Residential', 'Commercial', 'Land', 'Short Stay'];
 
   const propertyTypeMap: Record<string, number> = {
     'Residential': 1,
@@ -62,14 +68,47 @@ export default function LuxeEstate() {
     'Land': 3,
   };
 
-  const filteredProps = filterType === 'All'
+  const filteredProps = (filterType === 'All'
     ? properties
-    : properties.filter(p => p.property_type_id === propertyTypeMap[filterType]);
+    : filterType === 'Short Stay'
+    ? properties.filter(p => p.transaction_type_id === 3)
+    : properties.filter(p => p.property_type_id === propertyTypeMap[filterType] && p.transaction_type_id !== 3)
+  ).filter(p => {
+    if (!heroSearch) return true;
+    if (heroSearch.location && !p.location.toLowerCase().includes(heroSearch.location.toLowerCase())) return false;
+    if (heroSearch.propertyTypeId && p.property_type_id !== heroSearch.propertyTypeId) return false;
+    if (heroSearch.transactionTypeId && p.transaction_type_id !== heroSearch.transactionTypeId) return false;
+    if (heroSearch.maxPrice) {
+      const price = (p.transaction_type_id === 3
+        ? (p.amenities?.daily_rate as number)
+        : (p.amenities?.price as number)) || 0;
+      if (price > heroSearch.maxPrice) return false;
+    }
+    return true;
+  });
 
   const handleView = (property: Property) => {
     setSelectedProp(property);
     setPage('detail');
   };
+  
+
+  // ── FEATURED ROTATION FOR HOMEPAGE ──
+  const shuffle = <T,>(arr: T[]): T[] => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const featured = properties.filter(p => p.is_featured);
+  const nonFeatured = properties.filter(p => !p.is_featured);
+  const homepageProps = [
+    ...shuffle(featured),
+    ...shuffle(nonFeatured),
+  ].slice(0, 3);
 
   return (
     <div className={`luxe-root ${dark ? 'dark-mode' : ''}`}>
@@ -94,7 +133,7 @@ export default function LuxeEstate() {
 
           {/* Nav Links — hidden on mobile */}
           <div style={{ display: 'flex', gap: 28 }} className="hide-mobile">
-            {['listings', 'map', 'dashboard'].map(id => (
+            {['listings', 'services', 'map', 'dashboard'].map(id => (
               <span
                 key={id}
                 onClick={() => setPage(id)}
@@ -145,7 +184,14 @@ export default function LuxeEstate() {
         {/* ── HOME ── */}
         {page === 'home' && (
           <>
-            <HeroSection onSearch={() => setPage('listings')} dark={dark} />
+            <HeroSection
+              onSearch={(params) => {
+                setHeroSearch(params);
+                setFilterType('All');
+                setPage('listings');
+              }}
+              dark={dark}
+            />
             <section style={{ padding: '80px 24px', maxWidth: 1200, margin: '0 auto' }}>
               <p style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 8 }}>
                 Featured Listings
@@ -163,7 +209,7 @@ export default function LuxeEstate() {
                 </div>
               ) : (
                 <div className="property-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
-                  {properties.slice(0, 3).map(p => (
+                  {homepageProps.map(p => (
                     <PropertyCard key={p.id} property={p} onView={handleView} onSave={toggleSave} saved={savedIds.includes(p.id)} />
                   ))}
                 </div>
@@ -214,7 +260,12 @@ export default function LuxeEstate() {
         {/* ── MAP ── */}
         {page === 'map' && (
           <div style={{ paddingTop: 72, height: '100vh' }}>
-            <MapView activePin={activePin} setActivePin={setActivePin} properties={properties} />
+            <MapView
+              activePin={activePin}
+              setActivePin={setActivePin}
+              properties={properties}
+              onSelectProperty={handleView}
+            />
           </div>
         )}
 
@@ -225,11 +276,21 @@ export default function LuxeEstate() {
           </div>
         )}
 
+        {/* ── SERVICES ── */}
+        {page === 'services' && (
+          <ServicesDirectory onSelectProvider={(p) => { setSelectedProvider(p); setPage('service-detail'); }} />
+        )}
+
+        {/* ── SERVICE DETAIL ── */}
+        {page === 'service-detail' && selectedProvider && (
+          <ServiceProviderDetail provider={selectedProvider} onBack={() => setPage('services')} />
+        )}
+
         {/* ── DASHBOARD ── */}
         {page === 'dashboard' && (
           <div style={{ paddingTop: 72 }}>
             <Dashboard
-              properties={Number(user?.role) === 1 || Number(user?.role) === 2
+              properties={[2, 3, 4].includes(Number(user?.role))
                 ? dashboardProperties
                 : properties}
               saved={savedIds}

@@ -3,29 +3,50 @@
 import { Icons } from '@/components/Icons';
 import { useState } from "react";
 
-// Define the props for the Hero Section
+export interface HeroSearchParams {
+  location: string;
+  propertyTypeId: number | null;   // 1 Residential, 2 Commercial, 3 Land
+  transactionTypeId: number | null; // 1 Sale, 2 Rent, 3 Short Stay
+  maxPrice: number | null;
+}
+
 interface HeroSectionProps {
-  onSearch: () => void; // This tells TS that onSearch is a function that returns nothing
-  dark?: boolean;       // The '?' means this prop is optional
+  onSearch: (params: HeroSearchParams) => void;
+  dark?: boolean;
 }
 
 export default function HeroSection({ onSearch, dark }: HeroSectionProps) {
-  const [searchMode, setSearchMode] = useState('buy');
-  const [aiInput, setAiInput] = useState('');
+  const [location, setLocation] = useState('');
   const [propType, setPropType] = useState('');
+  const [transactionType, setTransactionType] = useState('');
   const [priceRange, setPriceRange] = useState('');
-  const [thinking, setThinking] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState('');
 
-  const handleAiSearch = async () => {
-    if (!aiInput.trim()) return;
-    setThinking(true);
-    setAiSuggestion('');
-    
-    // Simulate AI response delay
-    await new Promise(r => setTimeout(r, 1400));
-    setThinking(false);
-    setAiSuggestion(`Curating properties that match your lifestyle: "${aiInput}" — waterfront estates, private gardens & concierge services.`);
+  const propertyTypeMap: Record<string, number> = {
+    residential: 1,
+    commercial: 2,
+    land: 3,
+  };
+
+  const transactionTypeMap: Record<string, number> = {
+    sale: 1,
+    rent: 2,
+    short_stay: 3,
+  };
+
+  const priceMap: Record<string, number> = {
+    '0-50M': 50_000_000,
+    '50M-200M': 200_000_000,
+    '200M-500M': 500_000_000,
+    '500M+': Infinity,
+  };
+
+  const handleSearch = () => {
+    onSearch({
+      location: location.trim(),
+      propertyTypeId: propType ? propertyTypeMap[propType] : null,
+      transactionTypeId: transactionType ? transactionTypeMap[transactionType] : null,
+      maxPrice: priceRange ? priceMap[priceRange] : null,
+    });
   };
 
   return (
@@ -54,85 +75,68 @@ export default function HeroSection({ onSearch, dark }: HeroSectionProps) {
 
         {/* Search Card */}
         <div className="glass fade-up stagger-2" style={{ borderRadius: 4, padding: '0', overflow: 'hidden' }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            {['Buy', 'Rent', 'Invest'].map(t => (
-              <button key={t} className={`search-tab ${searchMode === t.toLowerCase() ? 'active' : ''}`}
-                onClick={() => setSearchMode(t.toLowerCase())}>{t}</button>
-            ))}
-          </div>
 
           {/* Main search */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
             {/* Location input */}
             <div style={{ flex: '2 1 200px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
               <Icons.MapPin />
-              <input className="search-input" placeholder="Neighborhood, address, or landmark…" />
+              <input
+                className="search-input"
+                placeholder="City or area, e.g. Kampala, Nairobi…"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              />
             </div>
 
             {/* Property type */}
-            <div style={{ flex: '1 1 120px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
+            <div style={{ flex: '1 1 140px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
               <Icons.Building />
               <select style={{ color: 'rgba(255,255,255,0.5)' }} value={propType} onChange={e => setPropType(e.target.value)}>
-                <option value="">Type</option>
-                <option value="penthouse">Penthouse</option>
-                <option value="condo">Condo</option>
-                <option value="townhouse">Townhouse</option>
-                <option value="estate">Estate</option>
+                <option value="">Property Type</option>
+                <option value="residential">Residential</option>
+                <option value="commercial">Commercial</option>
+                <option value="land">Land</option>
+              </select>
+            </div>
+
+            {/* Listing type */}
+            <div style={{ flex: '1 1 130px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
+              <Icons.Check />
+              <select style={{ color: 'rgba(255,255,255,0.5)' }} value={transactionType} onChange={e => setTransactionType(e.target.value)}>
+                <option value="">Listing Type</option>
+                <option value="sale">For Sale</option>
+                <option value="rent">For Rent</option>
+                <option value="short_stay">Short Stay</option>
               </select>
             </div>
 
             {/* Price range */}
-            <div style={{ flex: '1 1 120px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
+            <div style={{ flex: '1 1 140px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
               <Icons.DollarSign />
               <select style={{ color: 'rgba(255,255,255,0.5)' }} value={priceRange} onChange={e => setPriceRange(e.target.value)}>
-                <option value="">Price</option>
-                <option value="0-2M">Under $2M</option>
-                <option value="2M-5M">$2M – $5M</option>
-                <option value="5M-10M">$5M – $10M</option>
-                <option value="10M+">$10M+</option>
+                <option value="">Max Price</option>
+                <option value="0-50M">Under UGX 50M</option>
+                <option value="50M-200M">UGX 50M – 200M</option>
+                <option value="200M-500M">UGX 200M – 500M</option>
+                <option value="500M+">UGX 500M+</option>
               </select>
             </div>
 
             {/* Search btn */}
             <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', padding: '12px' }}>
-              <button className="luxe-btn" onClick={onSearch} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px' }}>
+              <button className="luxe-btn" onClick={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px' }}>
                 <Icons.Search />
                 <span className="hide-mobile">Search</span>
               </button>
             </div>
           </div>
-
-          {/* AI Search row */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '14px 20px', display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{ color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <Icons.Sparkle />
-              <span style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500 }}>AI Lifestyle Search</span>
-            </div>
-            <input
-              className="search-input"
-              placeholder="e.g. 'Waterfront home with a private chef\'s kitchen and wine cellar...'"
-              value={aiInput}
-              onChange={e => setAiInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAiSearch()}
-            />
-            <button onClick={handleAiSearch} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gold)', flexShrink: 0 }}>
-              {thinking ? <div style={{ width: 18, height: 18, border: '2px solid var(--gold)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Icons.Send />}
-            </button>
-          </div>
-
-          {/* AI result */}
-          {aiSuggestion && (
-            <div style={{ background: 'rgba(201,168,76,0.08)', borderTop: '1px solid rgba(201,168,76,0.15)', padding: '12px 20px', display: 'flex', gap: 10, alignItems: 'center' }}>
-              <Icons.Sparkle />
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic' }}>{aiSuggestion}</p>
-            </div>
-          )}
         </div>
 
         {/* Stats */}
         <div className="fade-up stagger-3" style={{ display: 'flex', gap: 32, marginTop: 32, paddingTop: 24 }}>
-          {[['2,400+', 'Premium Listings'], ['$4.2B', 'Properties Sold'], ['98%', 'Client Satisfaction']].map(([val, label]) => (
+          {[['2,400+', 'Premium Listings'], ['UGX 4.2B+', 'Properties Sold'], ['98%', 'Client Satisfaction']].map(([val, label]) => (
             <div key={label}>
               <div className="font-serif" style={{ fontSize: 24, fontWeight: 400, color: 'white' }}>{val}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>{label}</div>

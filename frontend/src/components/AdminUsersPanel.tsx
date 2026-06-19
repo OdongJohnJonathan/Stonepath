@@ -13,10 +13,13 @@ export default function AdminUsersPanel() {
   const [featuredDays, setFeaturedDays] = useState<Record<string, number>>({});
 
   const roleLabels: Record<number, string> = {
-    1: "Admin",
+    1: "User",
     2: "Agent",
-    3: "Buyer",
+    3: "Moderator",
+    4: "Super Admin",
   };
+
+  const isAdminRole = (role: number) => role === 3 || role === 4;
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -40,9 +43,11 @@ export default function AdminUsersPanel() {
     load();
   }, [fetchData]);
 
+  // Cycles a user between User <-> Agent. Moderator/Super Admin are managed
+  // separately (deliberately, not via a casual toggle) since they're privileged roles.
   const handleChangeRole = async (id: string, currentRole: number) => {
     if (!token) return;
-    const newRole = currentRole === 2 ? 3 : 2;
+    const newRole = currentRole === 2 ? 1 : 2;
     try {
       await adminApi.changeRole(id, newRole, token);
       fetchData();
@@ -227,8 +232,8 @@ export default function AdminUsersPanel() {
                   <td style={{ padding: '12px' }}>
                     <span style={{
                       padding: '2px 8px', borderRadius: 2, fontSize: 11,
-                      background: u.role === 1 ? 'rgba(201,168,76,0.15)' : u.role === 2 ? 'rgba(59,130,246,0.15)' : 'rgba(107,114,128,0.15)',
-                      color: u.role === 1 ? '#c9a84c' : u.role === 2 ? '#60a5fa' : 'var(--text-muted)',
+                      background: u.role === 4 ? 'rgba(239,68,68,0.15)' : u.role === 3 ? 'rgba(201,168,76,0.15)' : u.role === 2 ? 'rgba(59,130,246,0.15)' : 'rgba(107,114,128,0.15)',
+                      color: u.role === 4 ? '#f87171' : u.role === 3 ? '#c9a84c' : u.role === 2 ? '#60a5fa' : 'var(--text-muted)',
                     }}>
                       {roleLabels[u.role] || 'Unknown'}
                     </span>
@@ -285,21 +290,21 @@ export default function AdminUsersPanel() {
                         </button>
                       )}
 
-                      {u.role !== 1 && (
+                      {!isAdminRole(u.role) && (
                         <button onClick={() => handleTogglePremium(u.id)}
                           style={{ background: u.is_premium ? 'rgba(239,68,68,0.1)' : 'rgba(168,85,247,0.1)', border: 'none', color: u.is_premium ? '#f87171' : '#a855f7', padding: '3px 7px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
                           {u.is_premium ? 'Remove Premium' : '⭐ Premium'}
                         </button>
                       )}
 
-                      {u.role !== 1 && (
+                      {!isAdminRole(u.role) && (
                         <button onClick={() => handleChangeRole(u.id, u.role)}
                           style={{ background: 'rgba(59,130,246,0.15)', border: 'none', color: '#60a5fa', padding: '3px 7px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-                          Make {u.role === 2 ? 'Buyer' : 'Agent'}
+                          Make {u.role === 2 ? 'User' : 'Agent'}
                         </button>
                       )}
 
-                      {u.role !== 1 && (
+                      {!isAdminRole(u.role) && (
                         <button onClick={() => handleToggleActive(u.id)}
                           style={{
                             background: u.is_active ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',

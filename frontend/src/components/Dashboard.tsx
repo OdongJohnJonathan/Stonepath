@@ -37,9 +37,9 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
   const [upgradeSuccess, setUpgradeSuccess] = useState(false);
 
   const role = Number(user?.role);
-  const isAdmin = role === 1;
+  const isAdmin = role === 3 || role === 4; // Moderator or Super Admin
   const isAgent = role === 2;
-  const isBuyer = role === 3;
+  const isBuyer = role === 1;
 
   const myListings = isAdmin
     ? properties
@@ -488,7 +488,7 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
         {isBuyer && <MyEnquiriesPanel />}
         {isAdmin && <EnquiriesPanel />}
 
-        {/* ── INSPECTIONS ── */}
+        {/* ── INSPECTIONS & SHORT STAYS ── */}
         {isAgent && <InspectionsPanel />}
         {isBuyer && <MyShortStaysPanel />}
         {isAgent && <InspectionCalendar />}

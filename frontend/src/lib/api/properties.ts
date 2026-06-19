@@ -6,6 +6,8 @@ export interface Property {
   description: string;
   location: string;
   address?: string;
+  country?: string;
+  district?: string;
   bedrooms?: number;
   bathrooms?: number;
   square_footage?: number;
@@ -32,6 +34,8 @@ export interface CreatePropertyPayload {
   description: string;
   location: string;
   address?: string;
+  country?: string;
+  district?: string;
   bedrooms?: number;
   bathrooms?: number;
   square_footage?: number;
@@ -49,29 +53,13 @@ export interface CreatePropertyPayload {
 
 export interface PropertyFilters {
   location?: string;
+  country?: string;
+  district?: string;
   status?: string;
   property_type_id?: number;
   transaction_type_id?: number;
   page?: number;
   limit?: number;
-}
-
-export interface CreatePropertyPayload {
-  title: string;
-  description: string;
-  location: string;
-  address?: string;
-  bedrooms?: number;
-  bathrooms?: number;
-  square_footage?: number;
-  property_type_id: number;
-  transaction_type_id: number;
-  images?: string[];
-  amenities?: Record<string, unknown>;
-  currency?: string;
-  mortgage_available?: boolean;
-  mortgage_rate?: number;
-  mortgage_term?: number;
 }
 
 export const propertiesApi = {
@@ -117,4 +105,4 @@ export const propertiesApi = {
     apiRequest<Property>(`/properties/${id}/unfeature`, {
       method: "PUT", token,
     }),
-  };
+};

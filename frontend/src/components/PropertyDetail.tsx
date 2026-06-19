@@ -2,10 +2,21 @@
 
 import { Icons } from '@/components/Icons';
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Property, enquiriesApi, inspectionsApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import ShortStayBookingModal from '@/components/ShortStayBookingModal';
+import GuestAvailabilityCalendar from '@/components/GuestAvailabilityCalendar';
+
+const MapView = dynamic(() => import("@/components/MapView"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 280, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+      Loading map...
+    </div>
+  ),
+});
 
 interface PropertyDetailProps {
   property: Property;
@@ -118,7 +129,7 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
     { key: 'wifi', label: '📶 WiFi' },
     { key: 'cctv', label: '📹 CCTV' },
     { key: 'elevator', label: '🛗 Elevator' },
-    { key: 'air_conditioning', label: '❄️ Air Con' },
+    { key: 'air_conditioning', label: '❄️ Air Conditioning' },
     { key: 'kitchen', label: '🍳 Kitchen' },
     { key: 'washer', label: '🫧 Washer' },
     { key: 'tv', label: '📺 TV' },
@@ -178,7 +189,11 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
           {/* Title */}
           <h2 className="font-serif" style={{ fontSize: 36, fontWeight: 300 }}>{property.title}</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 20, flexWrap: 'wrap' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>📍 {property.address || property.location}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+              📍 {property.address || property.location}
+              {property.district ? `, ${property.district}` : ''}
+              {property.country && property.country !== 'Uganda' ? `, ${property.country}` : ''}
+            </p>
             {isShortStay && (
               <span style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(201,168,76,0.3)' }}>
                 🏨 Short Stay
@@ -187,7 +202,7 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
           </div>
 
           {/* Quick stats */}
-          <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', paddingBottom: 20, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', paddingBottom: 20, marginBottom: 28, flexWrap: 'wrap' }}>
             {property.bedrooms !== undefined && property.bedrooms > 0 && <span>🛏 {property.bedrooms} Beds</span>}
             {property.bathrooms !== undefined && property.bathrooms > 0 && <span>🚿 {property.bathrooms} Baths</span>}
             {property.square_footage && <span>📐 {property.square_footage.toLocaleString()} Sqft</span>}
@@ -195,8 +210,27 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
             {isShortStay && minNights > 1 && <span>🌙 Min {minNights} nights</span>}
           </div>
 
+          {/* ── LOCATION MAP ── (its own clean section) */}
+          {property.latitude && property.longitude && (
+            <div style={{ border: '1px solid var(--border)', borderRadius: 2, marginBottom: 28, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                📍 Location
+              </div>
+              <div style={{ height: 320 }}>
+                <MapView
+                  properties={[property]}
+                  activePin={property.id}
+                  setActivePin={() => {}}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Description */}
           <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 28 }}>{property.description}</p>
+
+          {/* ── GUEST AVAILABILITY CALENDAR (short stay only) ── */}
+          {isShortStay && <GuestAvailabilityCalendar propertyId={property.id} />}
 
           {/* Highlights */}
           <div style={{ border: '1px solid var(--border)', borderRadius: 2, marginBottom: 28 }}>
@@ -474,6 +508,18 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
                 <span>Location</span>
                 <span style={{ color: 'var(--text)' }}>{property.location}</span>
               </div>
+              {property.district && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>District</span>
+                  <span style={{ color: 'var(--text)' }}>{property.district}</span>
+                </div>
+              )}
+              {property.country && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Country</span>
+                  <span style={{ color: 'var(--text)' }}>{property.country}</span>
+                </div>
+              )}
               {property.bedrooms !== undefined && property.bedrooms > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Bedrooms</span><span style={{ color: 'var(--text)' }}>{property.bedrooms}</span>

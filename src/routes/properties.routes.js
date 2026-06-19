@@ -12,6 +12,7 @@ import {
 const router = express.Router();
 
 const FREE_LISTING_LIMIT = 3;
+const isAdmin = (role) => [3, 4].includes(Number(role)); // Moderator or Super Admin
 
 const validateProperty = [
   body('title').notEmpty().withMessage('Title is required'),
@@ -75,7 +76,7 @@ router.delete("/:id", authenticate, async (req, res) => {
       [req.params.id]
     );
     if (prop.rows.length === 0) return res.status(404).json({ error: "Property not found" });
-    if (Number(req.user.role) !== 1 && prop.rows[0].created_by !== req.user.id) {
+    if (!isAdmin(req.user.role) && prop.rows[0].created_by !== req.user.id) {
       return res.status(403).json({ error: "Not authorised" });
     }
 
@@ -101,7 +102,7 @@ router.delete("/:id", authenticate, async (req, res) => {
 // PUT — approve
 router.put("/:id/approve", authenticate, async (req, res) => {
   try {
-    if (Number(req.user.role) !== 1) {
+    if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: "Only admins can approve properties" });
     }
 
@@ -146,7 +147,7 @@ router.put("/:id/availability", authenticate, async (req, res) => {
       [req.params.id]
     );
     if (prop.rows.length === 0) return res.status(404).json({ error: "Property not found" });
-    if (Number(req.user.role) !== 1 && prop.rows[0].created_by !== req.user.id) {
+    if (!isAdmin(req.user.role) && prop.rows[0].created_by !== req.user.id) {
       return res.status(403).json({ error: "Not authorised" });
     }
 
@@ -166,7 +167,7 @@ router.put("/:id/availability", authenticate, async (req, res) => {
 // PUT — feature (admin only)
 router.put("/:id/feature", authenticate, async (req, res) => {
   try {
-    if (Number(req.user.role) !== 1) {
+    if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: "Only admins can feature properties" });
     }
 
@@ -191,7 +192,7 @@ router.put("/:id/feature", authenticate, async (req, res) => {
 // PUT — unfeature (admin only)
 router.put("/:id/unfeature", authenticate, async (req, res) => {
   try {
-    if (Number(req.user.role) !== 1) {
+    if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: "Only admins can unfeature properties" });
     }
 

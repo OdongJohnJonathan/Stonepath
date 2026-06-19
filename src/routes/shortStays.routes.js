@@ -7,6 +7,7 @@ import {
 } from "../../utils/email.js";
 
 const router = express.Router();
+const isAdmin = (role) => [3, 4].includes(Number(role)); // Moderator or Super Admin
 
 // GET /short-stays/available?property_id=&check_in=&check_out=
 router.get("/available", async (req, res) => {
@@ -75,7 +76,7 @@ router.post("/block", authenticate, async (req, res) => {
     );
     if (prop.rows.length === 0)
       return res.status(404).json({ error: "Property not found" });
-    if (prop.rows[0].created_by !== req.user.id && req.user.role !== 1)
+    if (prop.rows[0].created_by !== req.user.id && !isAdmin(req.user.role))
       return res.status(403).json({ error: "Not authorised" });
 
     if (action === "unblock") {
@@ -104,8 +105,10 @@ router.post("/block", authenticate, async (req, res) => {
 // POST /short-stays/book — guest books a stay
 router.post("/book", authenticate, async (req, res) => {
   const { property_id, check_in, check_out, guests = 1, phone_number, provider = "mtn", message } = req.body;
+
   if (!property_id || !check_in || !check_out || !phone_number)
     return res.status(400).json({ error: "property_id, check_in, check_out, and phone_number are required" });
+
   try {
     const propResult = await pool.query(
       `SELECT p.*, u.first_name AS host_first_name, u.last_name AS host_last_name,
@@ -137,12 +140,15 @@ router.post("/book", authenticate, async (req, res) => {
     if (blocked.rows.length > 0 || booked.rows.length > 0)
       return res.status(409).json({ error: "Selected dates are no longer available" });
 
+    const SERVICE_FEE_RATE = 0.07;
     const dailyRate = property.amenities?.daily_rate || 0;
     const nights = Math.max(
       1,
       Math.round((new Date(check_out) - new Date(check_in)) / 86400000)
     );
-    const totalAmount = dailyRate * nights;
+    const subtotal   = dailyRate * nights;
+    const serviceFee = Math.round(subtotal * SERVICE_FEE_RATE);
+    const totalAmount = subtotal + serviceFee;
 
     const booking = await pool.query(
       `INSERT INTO short_stay_bookings
@@ -247,7 +253,7 @@ router.put("/:id/status", authenticate, async (req, res) => {
     );
     if (existing.rows.length === 0)
       return res.status(404).json({ error: "Booking not found" });
-    if (existing.rows[0].host_id !== req.user.id && req.user.role !== 1)
+    if (existing.rows[0].host_id !== req.user.id && !isAdmin(req.user.role))
       return res.status(403).json({ error: "Not authorised" });
     const updated = await pool.query(
       `UPDATE short_stay_bookings SET status = $1, updated_at = NOW()
@@ -270,7 +276,7 @@ router.delete("/:id", authenticate, async (req, res) => {
     if (existing.rows.length === 0)
       return res.status(404).json({ error: "Booking not found" });
     const b = existing.rows[0];
-    if (b.guest_id !== req.user.id && req.user.role !== 1)
+    if (b.guest_id !== req.user.id && !isAdmin(req.user.role))
       return res.status(403).json({ error: "Not authorised" });
     if (b.status === "confirmed")
       return res.status(400).json({ error: "Confirmed bookings cannot be deleted. Ask the host to cancel." });

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { propertiesApi } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { uploadImage } from "@/lib/uploadImage";
+import { UGANDA_DISTRICTS, SUPPORTED_COUNTRIES } from "@/lib/ugandaDistricts";
 
 const MapPicker = dynamic(() => import("@/components/MapPicker"), {
   ssr: false,
@@ -20,11 +21,17 @@ interface Props {
   onCancel: () => void;
 }
 
-const getCurrency = (location: string) => {
-  const loc = location.toLowerCase();
-  if (loc.includes('kenya') || loc.includes('nairobi') || loc.includes('mombasa')) return 'KES';
-  if (loc.includes('tanzania') || loc.includes('dar es salaam') || loc.includes('arusha')) return 'TZS';
-  return 'UGX';
+const getCurrency = (country: string) => {
+  const currencyMap: Record<string, string> = {
+    Uganda: 'UGX',
+    Kenya: 'KES',
+    Rwanda: 'RWF',
+    Tanzania: 'TZS',
+    Burundi: 'BIF',
+    'South Sudan': 'SSP',
+    'DR Congo': 'CDF',
+  };
+  return currencyMap[country] || 'UGX';
 };
 
 export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
@@ -36,6 +43,8 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
     description: "",
     location: "",
     address: "",
+    country: "Uganda",
+    district: "",
     // regular property fields
     bedrooms: "",
     bathrooms: "",
@@ -88,13 +97,16 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
   const isResidential = propertyType === 1 && !isShortStay;
   const isCommercial  = propertyType === 2 && !isShortStay;
   const isLand        = propertyType === 3 && !isShortStay;
-  const currency = getCurrency(form.location);
+  const currency = getCurrency(form.country);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const target = e.target as HTMLInputElement;
     const { name, value, type } = target;
     if (type === 'checkbox') {
       setForm(f => ({ ...f, [name]: target.checked }));
+    } else if (name === 'country') {
+      // Reset district when country changes since district options depend on country
+      setForm(f => ({ ...f, country: value, district: "" }));
     } else {
       setForm(f => ({ ...f, [name]: value }));
     }
@@ -166,6 +178,8 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
         description: form.description,
         location: form.location,
         address: form.address,
+        country: form.country,
+        district: form.district,
         bedrooms: isResidential ? parseInt(form.bedrooms) || 0 : undefined,
         bathrooms: (isResidential || isCommercial) ? parseInt(form.bathrooms) || 0 : undefined,
         square_footage: !isShortStay ? parseInt(form.square_footage) || 0 : undefined,
@@ -295,8 +309,32 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
 
           <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
+              <label style={labelStyle}>Country *</label>
+              <select name="country" value={form.country} onChange={handleChange} style={inputStyle}>
+                {SUPPORTED_COUNTRIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>District {form.country === 'Uganda' ? '*' : ''}</label>
+              {form.country === 'Uganda' ? (
+                <select name="district" value={form.district} onChange={handleChange} required style={inputStyle}>
+                  <option value="">Select district</option>
+                  {UGANDA_DISTRICTS.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              ) : (
+                <input name="district" value={form.district} onChange={handleChange} placeholder="e.g. Nairobi, Kigali" style={inputStyle} />
+              )}
+            </div>
+          </div>
+
+          <div className="modal-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
               <label style={labelStyle}>City / Area *</label>
-              <input name="location" value={form.location} onChange={handleChange} required placeholder="e.g. Kampala, Uganda" style={inputStyle} />
+              <input name="location" value={form.location} onChange={handleChange} required placeholder="e.g. Kololo, Naguru" style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>Full Address</label>
@@ -304,11 +342,9 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
             </div>
           </div>
 
-          {form.location && (
-            <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: -8 }}>
-              💰 Currency auto-detected: <strong>{currency}</strong>
-            </div>
-          )}
+          <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: -8 }}>
+            💰 Currency auto-detected: <strong>{currency}</strong>
+          </div>
 
           {sectionTitle('Pin Location on Map')}
           <MapPicker latitude={latitude} longitude={longitude} onChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }} />

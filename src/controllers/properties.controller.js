@@ -65,18 +65,16 @@ export const createProperty = async (req, res) => {
       property_type_id, transaction_type_id,
       images, amenities, currency,
       mortgage_available, mortgage_rate, mortgage_term,
-      latitude, longitude
+      latitude, longitude, country, district
     } = req.body;
-
     const created_by = req.user?.id;
-
     const result = await pool.query(
       `INSERT INTO properties
       (title, description, location, address, bedrooms, bathrooms, square_footage,
        property_type_id, transaction_type_id, created_by, images, amenities,
        currency, mortgage_available, mortgage_rate, mortgage_term,
-       latitude, longitude, status, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'pending',NOW(),NOW())
+       latitude, longitude, country, district, status, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'pending',NOW(),NOW())
       RETURNING *`,
       [
         title, description, location, address,
@@ -91,9 +89,10 @@ export const createProperty = async (req, res) => {
         mortgage_term || null,
         latitude || null,
         longitude || null,
+        country || 'Uganda',
+        district || null,
       ]
     );
-
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -104,8 +103,7 @@ export const createProperty = async (req, res) => {
 // UPDATE a property
 export const updateProperty = async (req, res) => {
   const { id } = req.params;
-  const { title, description, location, address, bedrooms, bathrooms, square_footage } = req.body;
-
+  const { title, description, location, address, bedrooms, bathrooms, square_footage, country, district } = req.body;
   try {
     const result = await pool.query(
       `UPDATE properties
@@ -116,10 +114,12 @@ export const updateProperty = async (req, res) => {
            bedrooms = COALESCE($5, bedrooms),
            bathrooms = COALESCE($6, bathrooms),
            square_footage = COALESCE($7, square_footage),
+           country = COALESCE($8, country),
+           district = COALESCE($9, district),
            updated_at = NOW()
-       WHERE id = $8 AND deleted_at IS NULL
+       WHERE id = $10 AND deleted_at IS NULL
        RETURNING *`,
-      [title, description, location, address, bedrooms, bathrooms, square_footage, id]
+      [title, description, location, address, bedrooms, bathrooms, square_footage, country, district, id]
     );
 
     if (result.rows.length === 0) {

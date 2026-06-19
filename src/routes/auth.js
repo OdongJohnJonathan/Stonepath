@@ -9,31 +9,47 @@ const router = express.Router();
 
 // ── REGISTER ──────────────────────────────────────
 router.post('/register', async (req, res) => {
-  const { first_name, last_name, email, password, phone_number, role } = req.body;
+  const {
+    first_name, last_name, email, password, phone_number, role,
+    // Service Provider specific fields (only used when role === 5)
+    business_name, business_description, category_ids,
+    country, district, location, whatsapp, years_experience,
+  } = req.body;
 
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: 'First name, last name, email and password are required' });
   }
-
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
-  const assignedRole = role === 2 ? 2 : 3;
+  // 2 = Agent, 5 = Service Provider, 1 = User (default/regular buyer)
+  const assignedRole = role === 2 ? 2 : role === 5 ? 5 : 1;
 
+  if (assignedRole === 5) {
+    if (!business_name || !business_description || !Array.isArray(category_ids) || category_ids.length === 0) {
+      return res.status(400).json({ error: 'Business name, description, and at least one service category are required' });
+    }
+    if (!phone_number) {
+      return res.status(400).json({ error: 'Phone number is required for service providers' });
+    }
+  }
+
+  const client = await pool.connect();
   try {
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    await client.query('BEGIN');
+
+    const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'An account with this email already exists' });
     }
 
     const password_hash = await hashPassword(password);
-
-    // Generate verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO users
         (first_name, last_name, email, password_hash, phone_number, role,
          is_verified, verification_token, verification_token_expires, created_at, updated_at)
@@ -42,8 +58,34 @@ router.post('/register', async (req, res) => {
       [first_name, last_name, email, password_hash, phone_number || null,
        assignedRole, verificationToken, verificationExpires]
     );
-
     const user = result.rows[0];
+
+    // If registering as a Service Provider, create their provider profile + category links
+    if (assignedRole === 5) {
+      const providerResult = await client.query(
+        `INSERT INTO service_providers
+          (user_id, business_name, description, phone_number, email, whatsapp,
+           country, district, location, years_experience, status, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',NOW(),NOW())
+         RETURNING id`,
+        [
+          user.id, business_name, business_description, phone_number, email,
+          whatsapp || null, country || 'Uganda', district || null, location || null,
+          years_experience || null,
+        ]
+      );
+      const providerId = providerResult.rows[0].id;
+
+      for (const categoryId of category_ids) {
+        await client.query(
+          `INSERT INTO service_provider_categories (provider_id, category_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [providerId, categoryId]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
 
     // Send verification email (don't block registration if it fails)
     try {
@@ -54,8 +96,11 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({ token: generateToken(user) });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

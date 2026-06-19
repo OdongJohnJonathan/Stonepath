@@ -3,6 +3,7 @@ import pool from "../db.js";
 import { authenticate } from "../../middleware/auth.js";
 
 const router = express.Router();
+const isAdmin = (role) => [3, 4].includes(Number(role)); // Moderator or Super Admin
 
 export const PRICES = {
   premium_monthly: 50000,
@@ -76,7 +77,7 @@ router.post("/feature", authenticate, async (req, res) => {
       [property_id]
     );
     if (prop.rows.length === 0) return res.status(404).json({ error: "Property not found" });
-    if (Number(req.user.role) !== 1 && prop.rows[0].created_by !== req.user.id) {
+    if (!isAdmin(req.user.role) && prop.rows[0].created_by !== req.user.id) {
       return res.status(403).json({ error: "Not authorised" });
     }
 

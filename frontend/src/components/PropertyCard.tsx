@@ -14,11 +14,21 @@ interface PropertyCardProps {
 export default function PropertyCard({ property, onView, onSave, saved }: PropertyCardProps) {
   const [hovered, setHovered] = useState(false);
 
+  const isShortStay = property.transaction_type_id === 3;
+  const currency = property.currency || 'UGX';
+
   const formatPrice = (amenities?: Record<string, unknown>) => {
-    // Price stored in amenities until a price column is added
-    const price = amenities?.price as number | undefined;
+    const price = isShortStay
+      ? (amenities?.daily_rate as number | undefined)
+      : (amenities?.price as number | undefined);
+
     if (!price) return "Price on Request";
-    return price >= 1000000 ? `$${(price / 1000000).toFixed(1)}M` : `$${(price / 1000).toFixed(0)}K`;
+
+    const formatted = price >= 1000000
+      ? `${currency} ${(price / 1000000).toFixed(1)}M`
+      : `${currency} ${(price / 1000).toFixed(0)}K`;
+
+    return isShortStay ? `${formatted}/night` : formatted;
   };
 
   const thumbnail = property.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80";
@@ -42,6 +52,11 @@ export default function PropertyCard({ property, onView, onSave, saved }: Proper
           {property.is_featured && (
             <div style={{ background: 'var(--gold)', color: '#000', padding: '3px 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               ⭐ Featured
+            </div>
+          )}
+          {isShortStay && (
+            <div style={{ background: '#22c55e', color: '#000', padding: '3px 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              🏨 Short Stay
             </div>
           )}
           <div className="badge badge-gold">
@@ -71,7 +86,7 @@ export default function PropertyCard({ property, onView, onSave, saved }: Proper
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', margin: 0 }}>
-                {property.location}
+                {property.location}{property.district ? `, ${property.district}` : ''}
               </p>
               {property.agent_verified && (
                 <span title="Verified Agent" style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(201,168,76,0.3)' }}>
@@ -83,7 +98,7 @@ export default function PropertyCard({ property, onView, onSave, saved }: Proper
               {property.title}
             </h3>
           </div>
-          <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', fontFamily: 'Cormorant Garamond, serif' }}>
+          <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', fontFamily: 'Cormorant Garamond, serif', whiteSpace: 'nowrap', marginLeft: 8 }}>
             {formatPrice(property.amenities)}
           </span>
         </div>

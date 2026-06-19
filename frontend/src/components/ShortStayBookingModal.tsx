@@ -63,7 +63,10 @@ export default function ShortStayBookingModal({ property, onClose }: Props) {
   const nights      = checkIn && checkOut
     ? Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
     : 0;
-  const totalAmount = nights * dailyRate;
+  const SERVICE_FEE_RATE = 0.07; // 7% Stonepath service fee
+  const subtotal     = nights * dailyRate;
+  const serviceFee   = Math.round(subtotal * SERVICE_FEE_RATE);
+  const totalAmount  = subtotal + serviceFee;
 
   const fmtMoney = (n: number) =>
     `${currency} ${n.toLocaleString()}`;
@@ -251,12 +254,22 @@ export default function ShortStayBookingModal({ property, onClose }: Props) {
                     <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Check-out</div>
                     <div style={{ color: checkOut ? "var(--gold)" : "var(--text-muted)" }}>{checkOut ? fmtDate(checkOut) : "—"}</div>
                   </div>
-                  {nights > 0 && (
-                    <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                      <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>Total</div>
-                      <div style={{ color: "var(--gold)", fontWeight: 600 }}>{nights}n × {fmtMoney(dailyRate)} = {fmtMoney(totalAmount)}</div>
+                {nights > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, color: "var(--text-muted)" }}>
+                      <span>{nights} night{nights !== 1 ? "s" : ""} × {fmtMoney(dailyRate)}</span>
+                      <span>{fmtMoney(subtotal)}</span>
                     </div>
-                  )}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "var(--text-muted)" }}>
+                      <span>Service fee (7%)</span>
+                      <span>{fmtMoney(serviceFee)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, color: "var(--gold)", fontSize: 14 }}>
+                      <span>Total</span>
+                      <span>{fmtMoney(totalAmount)}</span>
+                    </div>
+                  </div>
+                )}
                 </div>
               </div>
             )}
