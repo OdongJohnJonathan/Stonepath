@@ -14,6 +14,8 @@ import InspectionCalendar from '@/components/InspectionCalendar';
 import HostAvailabilityCalendar from '@/components/HostAvailabilityCalendar';
 import HostShortStaysPanel from '@/components/HostShortStaysPanel';
 import MyShortStaysPanel from '@/components/MyShortStaysPanel';
+import AdminServiceProvidersPanel from '@/components/AdminServiceProvidersPanel';
+import MyServiceProviderPanel from '@/components/MyServiceProviderPanel';
 
 interface DashboardProps {
   properties: Property[];
@@ -40,6 +42,7 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
   const isAdmin = role === 3 || role === 4; // Moderator or Super Admin
   const isAgent = role === 2;
   const isBuyer = role === 1;
+  const isServiceProvider = role === 5;
 
   const myListings = isAdmin
     ? properties
@@ -136,7 +139,10 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
     { label: "Saved Properties", value: String(savedProps.length) },
   ];
 
-  const stats = isAdmin ? adminStats : isAgent ? agentStats : buyerStats;
+  const providerStats = [
+        { label: "Listing Status", value: "Pending" },
+      ];
+      const stats = isAdmin ? adminStats : isAgent ? agentStats : isServiceProvider ? providerStats : buyerStats;
 
   return (
     <div className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 120px' }}>
@@ -294,7 +300,7 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
       <div className="dashboard-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
         <div>
           <p style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 6 }}>
-            {isAdmin ? 'Admin Portal' : isAgent ? 'Agent Portal' : 'My Account'}
+            {isAdmin ? 'Admin Portal' : isAgent ? 'Agent Portal' : isServiceProvider ? 'Provider Portal' : 'My Account'}
           </p>
           <h2 className="font-serif" style={{ fontSize: 36, fontWeight: 300 }}>
             Welcome, {user?.first_name || 'User'}
@@ -302,6 +308,7 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
             {isAdmin ? 'You have full platform access'
               : isAgent ? 'Manage your property listings'
+              : isServiceProvider ? 'Manage your service listing'
               : 'Browse and save your favourite properties'}
           </p>
           {/* Agent badges */}
@@ -499,6 +506,12 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
 
         {/* ── ADMIN: USER MANAGEMENT ── */}
         {isAdmin && <AdminUsersPanel />}
+
+        {/* ── ADMIN: SERVICE PROVIDERS ── */}
+        {isAdmin && <AdminServiceProvidersPanel />}
+
+        {/* ── SERVICE PROVIDER: MY LISTING ── */}
+        {isServiceProvider && <MyServiceProviderPanel />}
 
       </div>
     </div>

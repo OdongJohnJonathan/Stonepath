@@ -12,6 +12,15 @@ export interface RegisterPayload {
   password: string;
   phone_number?: string;
   role?: number;
+  // Service Provider specific (only sent when role === 5)
+  business_name?: string;
+  business_description?: string;
+  category_ids?: number[];
+  country?: string;
+  district?: string;
+  location?: string;
+  whatsapp?: string;
+  years_experience?: number;
 }
 
 export interface AuthResponse {
