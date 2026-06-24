@@ -10,17 +10,55 @@ import EnquiriesPanel from '@/components/EnquiriesPanel';
 import MyEnquiriesPanel from '@/components/MyEnquiriesPanel';
 import InspectionsPanel from '@/components/InspectionsPanel';
 import MyInspectionsPanel from '@/components/MyInspectionsPanel';
-import InspectionCalendar from '@/components/InspectionCalendar';
 import HostAvailabilityCalendar from '@/components/HostAvailabilityCalendar';
 import HostShortStaysPanel from '@/components/HostShortStaysPanel';
 import MyShortStaysPanel from '@/components/MyShortStaysPanel';
 import AdminServiceProvidersPanel from '@/components/AdminServiceProvidersPanel';
 import MyServiceProviderPanel from '@/components/MyServiceProviderPanel';
+import ProfileSettingsPanel from '@/components/ProfileSettingsPanel';
 
 interface DashboardProps {
   properties: Property[];
   saved: string[];
   onPropertySubmitted: () => void;
+}
+
+// ── COLLAPSIBLE SECTION WRAPPER ──────────────────
+function Section({ title, subtitle, badge, defaultOpen = true, children }: {
+  title: string;
+  subtitle?: string;
+  badge?: string | number;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 2, overflow: "hidden" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "var(--card-bg)", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}>
+        <div>
+          <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>{title}</span>
+          {subtitle && <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>{subtitle}</span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {badge !== undefined && badge !== "" && (
+            <span style={{ background: "rgba(201,168,76,0.15)", color: "var(--gold)", fontSize: 11, padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>
+              {badge}
+            </span>
+          )}
+          <span style={{ color: "var(--text-muted)", fontSize: 16, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}>
+            ▾
+          </span>
+        </div>
+      </button>
+      {open && (
+        <div style={{ background: "var(--card-bg)", borderTop: "1px solid var(--border)" }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Dashboard({ properties, saved, onPropertySubmitted }: DashboardProps) {
@@ -39,7 +77,7 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
   const [upgradeSuccess, setUpgradeSuccess] = useState(false);
 
   const role = Number(user?.role);
-  const isAdmin = role === 3 || role === 4; // Moderator or Super Admin
+  const isAdmin = role === 3 || role === 4;
   const isAgent = role === 2;
   const isBuyer = role === 1;
   const isServiceProvider = role === 5;
@@ -55,13 +93,13 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
   const atFreeLimit = isAgent && !isPremium && activeListingCount >= 3;
 
   const formatPrice = (amenities?: Record<string, unknown>, currency?: string) => {
-  const price = amenities?.price as number | undefined;
-  if (!price) return "POA";
-  const symbol = currency || 'UGX';
-  return price >= 1000000
-    ? `${symbol} ${(price / 1000000).toFixed(1)}M`
-    : `${symbol} ${(price / 1000).toFixed(0)}K`;
-};
+    const price = amenities?.price as number | undefined;
+    if (!price) return "POA";
+    const symbol = currency || 'UGX';
+    return price >= 1000000
+      ? `${symbol} ${(price / 1000000).toFixed(1)}M`
+      : `${symbol} ${(price / 1000).toFixed(0)}K`;
+  };
 
   const thumbnail = (images: string[]) =>
     images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80";
@@ -108,7 +146,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
         body: { plan: upgradePlan, phone_number: upgradePhone, provider: upgradeProvider },
         token,
       });
-      // Refresh user so is_premium updates immediately without re-login
       await refreshUser();
       setUpgradeSuccess(true);
       setTimeout(() => {
@@ -140,9 +177,10 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
   ];
 
   const providerStats = [
-        { label: "Listing Status", value: "Pending" },
-      ];
-      const stats = isAdmin ? adminStats : isAgent ? agentStats : isServiceProvider ? providerStats : buyerStats;
+    { label: "Account Type", value: "Service Provider" },
+  ];
+
+  const stats = isAdmin ? adminStats : isAgent ? agentStats : isServiceProvider ? providerStats : buyerStats;
 
   return (
     <div className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 120px' }}>
@@ -223,7 +261,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
               </div>
             ) : (
               <>
-                {/* Plan selector */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                   {[
                     { plan: 'monthly' as const, label: 'Monthly', price: 'UGX 50,000', sub: 'per month' },
@@ -238,7 +275,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                   ))}
                 </div>
 
-                {/* Features list */}
                 <div style={{ background: 'var(--surface)', padding: 14, marginBottom: 20, fontSize: 12, color: 'var(--text-muted)', borderRadius: 2 }}>
                   {['Unlimited property listings', 'Priority support', 'Verified agent badge eligibility', 'Featured listing discounts'].map(f => (
                     <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -253,7 +289,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                   </div>
                 )}
 
-                {/* Phone input */}
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
                     Mobile Money Number
@@ -263,7 +298,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
                     style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', padding: '10px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
                 </div>
 
-                {/* Provider selector */}
                 <div style={{ marginBottom: 24 }}>
                   <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
                     Payment Provider
@@ -311,7 +345,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
               : isServiceProvider ? 'Manage your service listing'
               : 'Browse and save your favourite properties'}
           </p>
-          {/* Agent badges */}
           {isAgent && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               {user?.is_agent_verified && (
@@ -333,7 +366,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
           )}
         </div>
 
-        {/* List a Property button */}
         {isAgent && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             <button
@@ -371,147 +403,200 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
         ))}
       </div>
 
-      <div style={{ display: 'grid', gap: 24 }}>
+      {/* ── SECTIONS ── */}
+      <div style={{ display: 'grid', gap: 12 }}>
 
-        {/* ── SAVED PROPERTIES ── */}
+        {/* Profile Settings — all roles */}
+        <Section title="Profile Settings" subtitle="Update your account details">
+          <div style={{ padding: 24 }}>
+            <ProfileSettingsPanel />
+          </div>
+        </Section>
+
+        {/* Saved Properties */}
         {(isBuyer || isAgent) && (
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 className="font-serif" style={{ fontSize: 22, fontWeight: 400 }}>Saved Properties</h3>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{savedProps.length} saved</span>
-            </div>
-            {savedProps.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: 14 }}>
-                <Icons.Heart filled={false} />
-                <p style={{ marginTop: 8 }}>No saved properties yet. Browse listings and click the heart icon to save.</p>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
-                {savedProps.map(p => (
-                  <div key={p.id} onClick={() => setPreviewProp(p)}
-                    style={{ display: 'flex', gap: 12, padding: 12, border: '1px solid var(--border)', borderRadius: 2, cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
-                    <img src={thumbnail(p.images)} alt="" style={{ width: 64, height: 64, objectFit: 'cover', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{p.location}</div>
-                      <div style={{ color: 'var(--gold)', fontWeight: 600, fontSize: 14, marginTop: 4 }}>{formatPrice(p.amenities)}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Click to view →</div>
+          <Section title="Saved Properties" badge={savedProps.length} defaultOpen={false}>
+            <div style={{ padding: 24 }}>
+              {savedProps.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+                  <Icons.Heart filled={false} />
+                  <p style={{ marginTop: 8 }}>No saved properties yet. Browse listings and click the heart icon to save.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
+                  {savedProps.map(p => (
+                    <div key={p.id} onClick={() => setPreviewProp(p)}
+                      style={{ display: 'flex', gap: 12, padding: 12, border: '1px solid var(--border)', borderRadius: 2, cursor: 'pointer' }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
+                      <img src={thumbnail(p.images)} alt="" style={{ width: 64, height: 64, objectFit: 'cover', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{p.location}</div>
+                        <div style={{ color: 'var(--gold)', fontWeight: 600, fontSize: 14, marginTop: 4 }}>{formatPrice(p.amenities)}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Section>
         )}
 
-        {/* ── LISTINGS TABLE ── */}
+        {/* Listings Table */}
         {(isAgent || isAdmin) && (
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 24 }}>
-            <h3 className="font-serif" style={{ fontSize: 22, fontWeight: 400, marginBottom: 16 }}>
-              {isAdmin ? 'All Listings' : 'My Listings'}
-            </h3>
-            {myListings.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: 14 }}>
-                {isAgent
-                  ? <><span>No listings yet. </span><span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => atFreeLimit ? setShowUpgradeModal(true) : setShowForm(true)}>Submit your first property →</span></>
-                  : 'No properties submitted yet.'
-                }
-              </div>
-            ) : (
-              <div className="table-wrapper" style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      {['Property', 'Location', 'Price', 'Beds', 'Status', 'Actions'].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myListings.map(p => (
-                      <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            {p.is_featured && <span title="Featured" style={{ color: 'var(--gold)' }}>⭐</span>}
-                            <img src={thumbnail(p.images)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} />
-                            <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>{p.title}</div>
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{p.location}</td>
-                        <td style={{ padding: '12px', color: 'var(--gold)' }}>{formatPrice(p.amenities)}</td>
-                        <td style={{ padding: '12px' }}>{p.bedrooms ?? '—'}</td>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span style={{ color: p.status === 'approved' ? '#22c55e' : p.status === 'pending' ? '#f59e0b' : 'var(--text-muted)', textTransform: 'capitalize' }}>
-                              {p.status || 'Unknown'}
-                            </span>
-                            {p.status === 'approved' && (
-                              <span style={{ fontSize: 10, color: (p.amenities?.availability as string) === 'taken' ? '#f87171' : '#22c55e' }}>
-                                {(p.amenities?.availability as string) === 'taken' ? 'Taken' : 'Available'}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            <button onClick={() => setPreviewProp(p)}
-                              style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-                              View
-                            </button>
-                            {isAdmin && p.status === 'pending' && (
-                              <button onClick={() => approveProperty(p.id)}
-                                style={{ background: '#22c55e', border: 'none', color: 'white', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-                                Approve
-                              </button>
-                            )}
-                            {(isAdmin || p.created_by === user?.id) && p.status === 'approved' && (
-                              <button
-                                onClick={() => toggleAvailability(p.id, (p.amenities?.availability as string) === 'taken' ? 'available' : 'taken')}
-                                style={{ background: (p.amenities?.availability as string) === 'taken' ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)', border: 'none', color: (p.amenities?.availability as string) === 'taken' ? '#f87171' : '#22c55e', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-                                {(p.amenities?.availability as string) === 'taken' ? 'Mark Available' : 'Mark Taken'}
-                              </button>
-                            )}
-                            {(isAdmin || p.created_by === user?.id) && (
-                              <button onClick={() => deleteProperty(p.id)}
-                                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-                                Delete
-                              </button>
-                            )}
-                          </div>
-                        </td>
+          <Section title={isAdmin ? "All Listings" : "My Listings"} badge={myListings.length} defaultOpen={true}>
+            <div style={{ padding: 24 }}>
+              {myListings.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+                  {isAgent
+                    ? <><span>No listings yet. </span><span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => atFreeLimit ? setShowUpgradeModal(true) : setShowForm(true)}>Submit your first property →</span></>
+                    : 'No properties submitted yet.'
+                  }
+                </div>
+              ) : (
+                <div className="table-wrapper" style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                        {['Property', 'Location', 'Price', 'Beds', 'Status', 'Actions'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500 }}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                    </thead>
+                    <tbody>
+                      {myListings.map(p => (
+                        <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {p.is_featured && <span title="Featured" style={{ color: 'var(--gold)' }}>⭐</span>}
+                              <img src={thumbnail(p.images)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} />
+                              <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>{p.title}</div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{p.location}</td>
+                          <td style={{ padding: '12px', color: 'var(--gold)' }}>{formatPrice(p.amenities)}</td>
+                          <td style={{ padding: '12px' }}>{p.bedrooms ?? '—'}</td>
+                          <td style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <span style={{ color: p.status === 'approved' ? '#22c55e' : p.status === 'pending' ? '#f59e0b' : 'var(--text-muted)', textTransform: 'capitalize' }}>
+                                {p.status || 'Unknown'}
+                              </span>
+                              {p.status === 'approved' && (
+                                <span style={{ fontSize: 10, color: (p.amenities?.availability as string) === 'taken' ? '#f87171' : '#22c55e' }}>
+                                  {(p.amenities?.availability as string) === 'taken' ? 'Taken' : 'Available'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              <button onClick={() => setPreviewProp(p)}
+                                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                                View
+                              </button>
+                              {isAdmin && p.status === 'pending' && (
+                                <button onClick={() => approveProperty(p.id)}
+                                  style={{ background: '#22c55e', border: 'none', color: 'white', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                                  Approve
+                                </button>
+                              )}
+                              {(isAdmin || p.created_by === user?.id) && p.status === 'approved' && (
+                                <button
+                                  onClick={() => toggleAvailability(p.id, (p.amenities?.availability as string) === 'taken' ? 'available' : 'taken')}
+                                  style={{ background: (p.amenities?.availability as string) === 'taken' ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)', border: 'none', color: (p.amenities?.availability as string) === 'taken' ? '#f87171' : '#22c55e', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                                  {(p.amenities?.availability as string) === 'taken' ? 'Mark Available' : 'Mark Taken'}
+                                </button>
+                              )}
+                              {(isAdmin || p.created_by === user?.id) && (
+                                <button onClick={() => deleteProperty(p.id)}
+                                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </Section>
         )}
 
-        {/* ── ENQUIRIES ── */}
-        {isAgent && <EnquiriesPanel />}
-        {isBuyer && <MyEnquiriesPanel />}
-        {isAdmin && <EnquiriesPanel />}
+        {/* Enquiries */}
+        {isAgent && (
+          <Section title="Enquiries" defaultOpen={false}>
+            <div style={{ padding: 24 }}><EnquiriesPanel /></div>
+          </Section>
+        )}
+        {isBuyer && (
+          <Section title="My Enquiries" defaultOpen={false}>
+            <div style={{ padding: 24 }}><MyEnquiriesPanel /></div>
+          </Section>
+        )}
+        {isAdmin && (
+          <Section title="All Enquiries" defaultOpen={false}>
+            <div style={{ padding: 24 }}><EnquiriesPanel /></div>
+          </Section>
+        )}
 
-        {/* ── INSPECTIONS & SHORT STAYS ── */}
-        {isAgent && <InspectionsPanel />}
-        {isBuyer && <MyShortStaysPanel />}
-        {isAgent && <InspectionCalendar />}
-        {isAgent && <HostShortStaysPanel />}
-        {isAgent && <HostAvailabilityCalendar properties={myListings} />}
-        {isBuyer && <MyInspectionsPanel />}
-        {isAdmin && <InspectionsPanel isAdmin={true} />}
+        {/* Inspections */}
+        {isAgent && (
+          <Section title="Inspection Requests" defaultOpen={false}>
+            <div style={{ padding: 24 }}><InspectionsPanel /></div>
+          </Section>
+        )}
+        {isBuyer && (
+          <Section title="My Inspections" defaultOpen={false}>
+            <div style={{ padding: 24 }}><MyInspectionsPanel /></div>
+          </Section>
+        )}
+        {isAdmin && (
+          <Section title="All Inspections" defaultOpen={false}>
+            <div style={{ padding: 24 }}><InspectionsPanel isAdmin={true} /></div>
+          </Section>
+        )}
 
-        {/* ── ADMIN: USER MANAGEMENT ── */}
-        {isAdmin && <AdminUsersPanel />}
+        {/* Short Stays */}
+        {isAgent && (
+          <Section title="Short Stay Bookings" defaultOpen={false}>
+            <div style={{ padding: 24 }}><HostShortStaysPanel /></div>
+          </Section>
+        )}
+        {isAgent && (
+          <Section title="Availability Calendar" defaultOpen={false}>
+            <div style={{ padding: 24 }}><HostAvailabilityCalendar properties={myListings} /></div>
+          </Section>
+        )}
+        {isBuyer && (
+          <Section title="My Short Stay Bookings" defaultOpen={false}>
+            <div style={{ padding: 24 }}><MyShortStaysPanel /></div>
+          </Section>
+        )}
 
-        {/* ── ADMIN: SERVICE PROVIDERS ── */}
-        {isAdmin && <AdminServiceProvidersPanel />}
+        {/* Service Provider */}
+        {isServiceProvider && (
+          <Section title="My Service Listing" defaultOpen={true}>
+            <div style={{ padding: 24 }}><MyServiceProviderPanel /></div>
+          </Section>
+        )}
 
-        {/* ── SERVICE PROVIDER: MY LISTING ── */}
-        {isServiceProvider && <MyServiceProviderPanel />}
+        {/* Admin — User Management */}
+        {isAdmin && (
+          <Section title="User Management" defaultOpen={false}>
+            <div style={{ padding: 24 }}><AdminUsersPanel /></div>
+          </Section>
+        )}
+
+        {/* Admin — Service Provider Applications */}
+        {isAdmin && (
+          <Section title="Service Provider Applications" defaultOpen={true}>
+            <div style={{ padding: 24 }}><AdminServiceProvidersPanel /></div>
+          </Section>
+        )}
 
       </div>
     </div>

@@ -58,6 +58,7 @@ export interface PropertyFilters {
   status?: string;
   property_type_id?: number;
   transaction_type_id?: number;
+  created_by?: string;
   page?: number;
   limit?: number;
 }

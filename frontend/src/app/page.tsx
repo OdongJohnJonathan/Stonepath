@@ -15,6 +15,7 @@ import type { Property } from "@/lib/api";
 import ServicesDirectory from '@/components/ServicesDirectory';
 import ServiceProviderDetail from '@/components/ServiceProviderDetail';
 import type { ServiceProvider } from '@/lib/api/serviceProviders';
+import AgentProfile from '@/components/AgentProfile';
 
 export default function LuxeEstate() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function LuxeEstate() {
   const [selectedProvider, setSelectedProvider] = useState<ServiceProvider | null>(null);
   const [filterType, setFilterType] = useState('All');
   const [heroSearch, setHeroSearch] = useState<HeroSearchParams | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<{id: string; name: string; verified: boolean} | null>(null);
 
   // Public listings — approved only
   useEffect(() => {
@@ -272,10 +274,17 @@ export default function LuxeEstate() {
         {/* ── DETAIL ── */}
         {page === 'detail' && selectedProp && (
           <div style={{ paddingTop: 72 }}>
-            <PropertyDetail property={selectedProp} onBack={() => setPage('listings')} dark={dark} />
+            <PropertyDetail
+              property={selectedProp}
+              onBack={() => setPage('listings')}
+              dark={dark}
+              onViewAgent={(id, name, verified) => {
+                setSelectedAgent({ id, name, verified });
+                setPage('agent-profile');
+              }}
+            />
           </div>
         )}
-
         {/* ── SERVICES ── */}
         {page === 'services' && (
           <ServicesDirectory onSelectProvider={(p) => { setSelectedProvider(p); setPage('service-detail'); }} />
@@ -313,6 +322,21 @@ export default function LuxeEstate() {
         <div onClick={() => setPage('map')} style={{ opacity: page === 'map' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Map /></div>
         <div onClick={() => setPage('dashboard')} style={{ opacity: page === 'dashboard' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.User /></div>
       </div>
+
+      {/* ── AGENT PROFILE ── */}
+        {page === 'agent-profile' && selectedAgent && (
+          <div style={{ paddingTop: 72 }}>
+            <AgentProfile
+              agentId={selectedAgent.id}
+              agentName={selectedAgent.name}
+              agentVerified={selectedAgent.verified}
+              onBack={() => setPage('listings')}
+              onView={handleView}
+              onSave={toggleSave}
+              savedIds={savedIds}
+            />
+          </div>
+        )}
 
     </div>
   );

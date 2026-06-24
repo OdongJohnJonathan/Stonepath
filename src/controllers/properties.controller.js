@@ -6,7 +6,7 @@ export const getProperties = async (req, res) => {
     const {
       location, status, property_type_id,
       transaction_type_id, page = 1, limit = 20,
-      all
+      all, created_by
     } = req.query;
 
     let filters = [];
@@ -28,9 +28,14 @@ export const getProperties = async (req, res) => {
       values.push(transaction_type_id);
       filters.push(`p.transaction_type_id = $${values.length}`);
     }
+    if (created_by) {
+      values.push(created_by);
+      filters.push(`p.created_by = $${values.length}`);
+    }
 
     if (!all) {
       filters.push(`p.status = 'approved'`);
+      filters.push(`(p.amenities->>'availability' IS NULL OR p.amenities->>'availability' != 'taken')`);
     }
 
     filters.push(`(p.featured_until IS NULL OR p.featured_until > NOW())`);

@@ -22,9 +22,10 @@ interface PropertyDetailProps {
   property: Property;
   onBack: () => void;
   dark?: boolean;
+  onViewAgent?: (agentId: string, agentName: string, agentVerified: boolean) => void;
 }
 
-export default function PropertyDetail({ property, onBack }: PropertyDetailProps) {
+export default function PropertyDetail({ property, onBack, onViewAgent }: PropertyDetailProps) {
   const { user, token } = useAuth();
   const router = useRouter();
 
@@ -194,6 +195,17 @@ export default function PropertyDetail({ property, onBack }: PropertyDetailProps
               {property.district ? `, ${property.district}` : ''}
               {property.country && property.country !== 'Uganda' ? `, ${property.country}` : ''}
             </p>
+            {property.created_by && onViewAgent && (
+              <button
+                onClick={() => onViewAgent(
+                  property.created_by!,
+                  property.agent_name || "View Agent",
+                  property.agent_verified || false
+                )}
+                style={{ background: "none", border: "none", color: "var(--gold)", fontSize: 12, cursor: "pointer", padding: 0, fontFamily: "'DM Sans', sans-serif', marginTop: 4" }}>
+                View agent profile →
+              </button>
+            )}
             {isShortStay && (
               <span style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(201,168,76,0.3)' }}>
                 🏨 Short Stay
