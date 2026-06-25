@@ -146,4 +146,35 @@ router.put("/users/:id/premium", authenticate, adminOnly, async (req, res) => {
   }
 });
 
+// DELETE /admin/users/:id — permanently delete a user (Super Admin only)
+router.delete("/users/:id", authenticate, async (req, res) => {
+  // Only Super Admin (role 4) can permanently delete users
+  if (Number(req.user.role) !== 4) {
+    return res.status(403).json({ error: "Only Super Admins can delete users" });
+  }
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ error: "You cannot delete your own account" });
+  }
+  try {
+    // Check user exists
+    const existing = await pool.query(
+      "SELECT id, email, role FROM users WHERE id = $1",
+      [req.params.id]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    // Prevent deleting other admins
+    if ([3, 4].includes(Number(existing.rows[0].role))) {
+      return res.status(400).json({ error: "Admin accounts cannot be deleted this way. Demote them first." });
+    }
+    // Hard delete — cascades to properties, enquiries, etc. via FK ON DELETE CASCADE
+    await pool.query("DELETE FROM users WHERE id = $1", [req.params.id]);
+    res.json({ message: `User ${existing.rows[0].email} deleted permanently` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
 export default router;

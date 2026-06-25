@@ -5,7 +5,7 @@ import { adminApi, AdminUser, propertiesApi, Property } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AdminUsersPanel() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +76,17 @@ export default function AdminUsersPanel() {
       await adminApi.toggleAgentVerified(id, token);
       fetchData();
     } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteUser = async (id: string, name: string) => {
+    if (!token) return;
+    if (!window.confirm(`Permanently delete ${name}? This cannot be undone and will remove all their data.`)) return;
+    try {
+      await adminApi.deleteUser(id, token);
+      fetchData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete user");
+    }
   };
 
   const handleTogglePremium = async (id: string) => {
@@ -314,6 +325,13 @@ export default function AdminUsersPanel() {
                             fontFamily: "'DM Sans', sans-serif", borderRadius: 2,
                           }}>
                           {u.is_active ? 'Ban' : 'Unban'}
+                        </button>
+                      )}
+
+                      {!isAdminRole(u.role) && Number(user?.role) === 4 && (
+                        <button onClick={() => handleDeleteUser(u.id, `${u.first_name} ${u.last_name}`)}
+                          style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171", padding: '3px 7px', fontSize: 10, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                          🗑 Delete
                         </button>
                       )}
 

@@ -16,6 +16,7 @@ import MyShortStaysPanel from '@/components/MyShortStaysPanel';
 import AdminServiceProvidersPanel from '@/components/AdminServiceProvidersPanel';
 import MyServiceProviderPanel from '@/components/MyServiceProviderPanel';
 import ProfileSettingsPanel from '@/components/ProfileSettingsPanel';
+import AdminNewsletterPanel from '@/components/AdminNewsletterPanel';
 
 interface DashboardProps {
   properties: Property[];
@@ -595,6 +596,13 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
         {isAdmin && (
           <Section title="Service Provider Applications" defaultOpen={true}>
             <div style={{ padding: 24 }}><AdminServiceProvidersPanel /></div>
+          </Section>
+        )}
+
+        {/* Admin — Newsletter */}
+        {isAdmin && (
+          <Section title="Newsletter" defaultOpen={false}>
+            <div style={{ padding: 24 }}><AdminNewsletterPanel /></div>
           </Section>
         )}
 

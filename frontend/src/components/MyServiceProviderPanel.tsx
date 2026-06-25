@@ -50,6 +50,27 @@ export default function MyServiceProviderPanel() {
   });
   const [categoryIds, setCategoryIds] = useState<number[]>([]);
 
+  const [tab, setTab] = useState<"listing" | "enquiries">("listing");
+  const [enquiries, setEnquiries] = useState<Array<{
+    id: string; sender_name: string; sender_email: string;
+    sender_phone?: string; message: string; status: string; created_at: string;
+  }>>([]);
+  const [enquiriesLoading, setEnquiriesLoading] = useState(false);
+
+const fetchEnquiries = async () => {
+    if (!token) return;
+    setEnquiriesLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/service-providers/mine/enquiries`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setEnquiries(data);
+    } catch (err) { console.error(err); }
+    finally { setEnquiriesLoading(false); }
+  };
+
+
   const fetchProvider = useCallback(() => {
     if (!token) return;
     setLoading(true);
@@ -143,208 +164,285 @@ export default function MyServiceProviderPanel() {
   );
 
   return (
-    <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", padding: 24 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <p style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 4 }}>Stonepath Services</p>
-          <h3 className="font-serif" style={{ fontSize: 24, fontWeight: 400 }}>My Service Listing</h3>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 10, background: `${statusColor(provider.status)}22`, color: statusColor(provider.status), fontWeight: 600, textTransform: "capitalize" }}>
-            {provider.status}
-          </span>
-          {provider.is_verified && (
-            <span style={{ background: "rgba(201,168,76,0.15)", color: "var(--gold)", fontSize: 11, padding: "3px 8px", borderRadius: 2, fontWeight: 600 }}>
-              ✓ Verified
-            </span>
-          )}
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+      {/* Tab bar */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border)", marginBottom: 20 }}>
+        {[
+          { key: "listing", label: "My Listing" },
+          { key: "enquiries", label: `Enquiries${enquiries.length > 0 ? ` (${enquiries.length})` : ""}` },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => { setTab(t.key as "listing" | "enquiries"); if (t.key === "enquiries") fetchEnquiries(); }}
+            style={{
+              padding: "10px 20px", background: "none", border: "none",
+              borderBottom: tab === t.key ? "2px solid var(--gold)" : "2px solid transparent",
+              color: tab === t.key ? "var(--gold)" : "var(--text-muted)",
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: tab === t.key ? 600 : 400,
+            }}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Status notice */}
-      {provider.status === "pending" && (
-        <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", padding: "10px 14px", fontSize: 13, color: "#f59e0b", marginBottom: 16, borderRadius: 2 }}>
-          ⏳ Your listing is under review. It will appear publicly once approved by our team.
-        </div>
-      )}
-      {provider.status === "rejected" && (
-        <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", padding: "10px 14px", fontSize: 13, color: "#f87171", marginBottom: 16, borderRadius: 2 }}>
-          ✗ Your listing was not approved. Edit your details and save to resubmit for review.
-        </div>
-      )}
-      {success && (
-        <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", padding: "10px 14px", fontSize: 13, color: "#22c55e", marginBottom: 16, borderRadius: 2 }}>
-          {success}
-        </div>
-      )}
-      {error && (
-        <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", padding: "10px 14px", fontSize: 13, color: "#f87171", marginBottom: 16, borderRadius: 2 }}>
-          {error}
-        </div>
-      )}
+      {/* ── LISTING TAB ── */}
+      {tab === "listing" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
 
-      {/* View mode */}
-      {!editing ? (
-        <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13, marginBottom: 20 }}>
-            <div>
-              <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Business Name</span>
-              <p style={{ marginTop: 4 }}>{provider.business_name}</p>
+          {/* Status notices */}
+          {provider.status === "pending" && (
+            <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", padding: "10px 14px", fontSize: 13, color: "#f59e0b", marginBottom: 16, borderRadius: 2 }}>
+              ⏳ Your listing is under review. It will appear publicly once approved by our team.
+            </div>
+          )}
+          {provider.status === "rejected" && (
+            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", padding: "10px 14px", fontSize: 13, color: "#f87171", marginBottom: 16, borderRadius: 2 }}>
+              ✗ Your listing was not approved. Edit your details and save to resubmit for review.
+            </div>
+          )}
+          {success && (
+            <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", padding: "10px 14px", fontSize: 13, color: "#22c55e", marginBottom: 16, borderRadius: 2 }}>
+              {success}
+            </div>
+          )}
+          {error && (
+            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", padding: "10px 14px", fontSize: 13, color: "#f87171", marginBottom: 16, borderRadius: 2 }}>
+              {error}
+            </div>
+          )}
+
+          {/* Tier badge */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 10, background: `${provider.status === "approved" ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.15)"}`, color: provider.status === "approved" ? "#22c55e" : "#f59e0b", fontWeight: 600, textTransform: "capitalize" }}>
+                {provider.status}
+              </span>
+              {provider.is_verified && (
+                <span style={{ background: "rgba(201,168,76,0.15)", color: "var(--gold)", fontSize: 11, padding: "3px 8px", borderRadius: 2, fontWeight: 600 }}>
+                  ✓ Verified
+                </span>
+              )}
             </div>
             <div>
-              <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Description</span>
-              <p style={{ marginTop: 4, color: "var(--text-muted)", lineHeight: 1.6 }}>{provider.description}</p>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Plan: </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: provider.tier === "featured" ? "var(--gold)" : provider.tier === "standard" ? "#22c55e" : "var(--text-muted)", textTransform: "capitalize" }}>
+                {provider.tier || "Free"}
+              </span>
+              {(!provider.tier || provider.tier === "free") && (
+                <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 6 }}>
+                  · Contact your admin to upgrade
+                </span>
+              )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Phone</span>
-                <p style={{ marginTop: 4 }}>{provider.phone_number}</p>
-              </div>
-              {provider.whatsapp && (
+          </div>
+
+          {/* View / Edit */}
+          {!editing ? (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13, marginBottom: 20 }}>
                 <div>
-                  <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>WhatsApp</span>
-                  <p style={{ marginTop: 4 }}>{provider.whatsapp}</p>
+                  <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Business Name</span>
+                  <p style={{ marginTop: 4 }}>{provider.business_name}</p>
                 </div>
-              )}
-              {provider.email && (
                 <div>
-                  <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Email</span>
-                  <p style={{ marginTop: 4 }}>{provider.email}</p>
+                  <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Description</span>
+                  <p style={{ marginTop: 4, color: "var(--text-muted)", lineHeight: 1.6 }}>{provider.description}</p>
                 </div>
-              )}
-              <div>
-                <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Location</span>
-                <p style={{ marginTop: 4 }}>{[provider.location, provider.district, provider.country].filter(Boolean).join(", ")}</p>
-              </div>
-              {provider.years_experience && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Phone</span>
+                    <p style={{ marginTop: 4 }}>{provider.phone_number}</p>
+                  </div>
+                  {provider.whatsapp && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>WhatsApp</span>
+                      <p style={{ marginTop: 4 }}>{provider.whatsapp}</p>
+                    </div>
+                  )}
+                  {provider.email && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Email</span>
+                      <p style={{ marginTop: 4 }}>{provider.email}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Location</span>
+                    <p style={{ marginTop: 4 }}>{[provider.location, provider.district, provider.country].filter(Boolean).join(", ")}</p>
+                  </div>
+                  {provider.years_experience && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Experience</span>
+                      <p style={{ marginTop: 4 }}>{provider.years_experience} years</p>
+                    </div>
+                  )}
+                </div>
                 <div>
-                  <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Experience</span>
-                  <p style={{ marginTop: 4 }}>{provider.years_experience} years</p>
-                </div>
-              )}
-            </div>
-            <div>
-              <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Services</span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                {(provider.categories ?? []).map(c => (
-                  <span key={c.id} style={{ fontSize: 11, background: "var(--surface)", border: "1px solid var(--border)", padding: "3px 10px", borderRadius: 10 }}>
-                    {c.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={fetchProvider}
-              style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "10px 18px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-              ↻ Refresh Status
-            </button>
-            <button onClick={() => setEditing(true)}
-              style={{ background: "var(--gold)", border: "none", color: "#000", padding: "10px 24px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-              Edit Listing
-            </button>
-          </div>
-        </>
-      ) : (
-        /* Edit mode */
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          <div>
-            <label style={labelStyle}>Business / Service Name *</label>
-            <input name="business_name" value={form.business_name} onChange={handleChange} style={inputStyle} />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Description *</label>
-            <textarea name="description" value={form.description} onChange={handleChange} rows={4} style={{ ...inputStyle, resize: "vertical" }} />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div>
-              <label style={labelStyle}>Phone *</label>
-              <input name="phone_number" type="tel" value={form.phone_number} onChange={handleChange} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>WhatsApp</label>
-              <input name="whatsapp" type="tel" value={form.whatsapp} onChange={handleChange} style={inputStyle} />
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input name="email" type="email" value={form.email} onChange={handleChange} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Years of Experience</label>
-              <input name="years_experience" type="number" min="0" value={form.years_experience} onChange={handleChange} style={inputStyle} />
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div>
-              <label style={labelStyle}>Country</label>
-              <select name="country" value={form.country} onChange={handleChange} style={inputStyle}>
-                {SUPPORTED_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>District</label>
-              {form.country === "Uganda" ? (
-                <select name="district" value={form.district} onChange={handleChange} style={inputStyle}>
-                  <option value="">Select district</option>
-                  {UGANDA_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              ) : (
-                <input name="district" value={form.district} onChange={handleChange} placeholder="e.g. Nairobi" style={inputStyle} />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>City / Area</label>
-            <input name="location" value={form.location} onChange={handleChange} placeholder="e.g. Kololo, Kampala" style={inputStyle} />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Services You Offer *</label>
-            <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--border)", padding: 12, borderRadius: 2 }}>
-              {tiers.map(tier => (
-                <div key={tier} style={{ marginBottom: 12 }}>
-                  <p style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{tier}</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {ALL_CATEGORIES.filter(c => c.tier === tier).map(cat => (
-                      <button type="button" key={cat.id} onClick={() => toggleCategory(cat.id)}
-                        style={{ padding: "5px 10px", fontSize: 11, cursor: "pointer", borderRadius: 2, fontFamily: "'DM Sans', sans-serif", border: categoryIds.includes(cat.id) ? "1px solid var(--gold)" : "1px solid var(--border)", background: categoryIds.includes(cat.id) ? "rgba(201,168,76,0.12)" : "transparent", color: categoryIds.includes(cat.id) ? "var(--gold)" : "var(--text-muted)" }}>
-                        {cat.name}
-                      </button>
+                  <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Services</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                    {(provider.categories ?? []).map(c => (
+                      <span key={c.id} style={{ fontSize: 11, background: "var(--surface)", border: "1px solid var(--border)", padding: "3px 10px", borderRadius: 10 }}>
+                        {c.name}
+                      </span>
                     ))}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setEditing(true)}
+                style={{ background: "var(--gold)", border: "none", color: "#000", padding: "10px 24px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2, alignSelf: "flex-start" }}>
+                Edit Listing
+              </button>
+            </>
+          ) : (
+            /* Edit form */
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Business / Service Name *</label>
+                <input name="business_name" value={form.business_name} onChange={handleChange} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Description *</label>
+                <textarea name="description" value={form.description} onChange={handleChange} rows={4} style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Phone *</label>
+                  <input name="phone_number" type="tel" value={form.phone_number} onChange={handleChange} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>WhatsApp</label>
+                  <input name="whatsapp" type="tel" value={form.whatsapp} onChange={handleChange} style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Email</label>
+                  <input name="email" type="email" value={form.email} onChange={handleChange} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Years of Experience</label>
+                  <input name="years_experience" type="number" min="0" value={form.years_experience} onChange={handleChange} style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Country</label>
+                  <select name="country" value={form.country} onChange={handleChange} style={inputStyle}>
+                    {SUPPORTED_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>District</label>
+                  {form.country === "Uganda" ? (
+                    <select name="district" value={form.district} onChange={handleChange} style={inputStyle}>
+                      <option value="">Select district</option>
+                      {UGANDA_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  ) : (
+                    <input name="district" value={form.district} onChange={handleChange} style={inputStyle} />
+                  )}
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>City / Area</label>
+                <input name="location" value={form.location} onChange={handleChange} placeholder="e.g. Kololo" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Services You Offer *</label>
+                <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--border)", padding: 12, borderRadius: 2 }}>
+                  {tiers.map(tier => (
+                    <div key={tier} style={{ marginBottom: 12 }}>
+                      <p style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{tier}</p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {ALL_CATEGORIES.filter(c => c.tier === tier).map(cat => (
+                          <button type="button" key={cat.id} onClick={() => toggleCategory(cat.id)}
+                            style={{ padding: "5px 10px", fontSize: 11, cursor: "pointer", borderRadius: 2, fontFamily: "'DM Sans', sans-serif", border: categoryIds.includes(cat.id) ? "1px solid var(--gold)" : "1px solid var(--border)", background: categoryIds.includes(cat.id) ? "rgba(201,168,76,0.12)" : "transparent", color: categoryIds.includes(cat.id) ? "var(--gold)" : "var(--text-muted)" }}>
+                            {cat.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{categoryIds.length} selected</p>
+              </div>
+              <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", padding: "10px 14px", fontSize: 12, color: "#f59e0b", borderRadius: 2 }}>
+                ℹ️ Saving changes will resubmit your listing for admin review before it appears publicly again.
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => { setEditing(false); setError(""); }}
+                  style={{ flex: 1, background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "10px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                  Cancel
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  style={{ flex: 2, background: saving ? "rgba(201,168,76,0.4)" : "var(--gold)", border: "none", color: "#000", padding: "10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ENQUIRIES TAB ── */}
+      {tab === "enquiries" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{enquiries.length} enquir{enquiries.length !== 1 ? "ies" : "y"} received</p>
+            <button onClick={fetchEnquiries}
+              style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "4px 12px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+              ↻ Refresh
+            </button>
+          </div>
+
+          {enquiriesLoading ? (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-muted)" }}>Loading...</div>
+          ) : enquiries.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 14 }}>
+              <p style={{ fontSize: 28, marginBottom: 8 }}>📬</p>
+              No enquiries yet. Once customers send messages, they&apos;ll appear here.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {enquiries.map(e => (
+                <div key={e.id} style={{ background: "var(--surface)", border: `1px solid ${e.status === "unread" ? "var(--gold)" : "var(--border)"}`, padding: 16, borderRadius: 2 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                    <div>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{e.sender_name}</span>
+                      {e.status === "unread" && (
+                        <span style={{ marginLeft: 8, fontSize: 10, background: "rgba(201,168,76,0.15)", color: "var(--gold)", padding: "1px 6px", borderRadius: 10, fontWeight: 600 }}>NEW</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {new Date(e.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
+                    <a href={`mailto:${e.sender_email}`} style={{ color: "var(--gold)" }}>{e.sender_email}</a>
+                    {e.sender_phone && <> · {e.sender_phone}</>}
+                  </div>
+                  <p style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.6, background: "var(--card-bg)", padding: 12, borderRadius: 2 }}>
+                    {e.message}
+                  </p>
+                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                    <a href={`mailto:${e.sender_email}?subject=Re: Your enquiry on Stonepath`}
+                      style={{ background: "var(--gold)", border: "none", color: "#000", padding: "6px 16px", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2, textDecoration: "none", display: "inline-block" }}>
+                      Reply via Email
+                    </a>
+                    {e.sender_phone && (
+                      <a href={`https://wa.me/${e.sender_phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                        style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", padding: "6px 16px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2, textDecoration: "none", display: "inline-block" }}>
+                        WhatsApp
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{categoryIds.length} selected</p>
-          </div>
-
-          <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", padding: "10px 14px", fontSize: 12, color: "#f59e0b", borderRadius: 2 }}>
-            ℹ️ Saving changes will resubmit your listing for admin review before it appears publicly again.
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => { setEditing(false); setError(""); }}
-              style={{ flex: 1, background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", padding: "10px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-              Cancel
-            </button>
-            <button onClick={handleSave} disabled={saving}
-              style={{ flex: 2, background: saving ? "rgba(201,168,76,0.4)" : "var(--gold)", border: "none", color: "#000", padding: "10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-
+          )}
         </div>
       )}
+
     </div>
   );
 }

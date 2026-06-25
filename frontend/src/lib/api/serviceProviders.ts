@@ -27,6 +27,8 @@ export interface ServiceProvider {
   categories: ServiceCategory[];
   account_email?: string;
   created_at: string;
+  tier?: string; // 'free' | 'standard' | 'featured'
+  subscription_expires_at?: string;
 }
 
 export interface UpdateProviderPayload {

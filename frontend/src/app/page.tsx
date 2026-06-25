@@ -1,7 +1,7 @@
 "use client";
 
 import { Icons } from '@/components/Icons';
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import HeroSection from '@/components/HeroSection';
 import type { HeroSearchParams } from '@/components/HeroSection';
@@ -16,6 +16,17 @@ import ServicesDirectory from '@/components/ServicesDirectory';
 import ServiceProviderDetail from '@/components/ServiceProviderDetail';
 import type { ServiceProvider } from '@/lib/api/serviceProviders';
 import AgentProfile from '@/components/AgentProfile';
+import NewsletterSignup from '@/components/NewsletterSignup';
+
+// ── FEATURED ROTATION FOR HOMEPAGE ──
+const shuffle = <T,>(arr: T[]): T[] => {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
 
 export default function LuxeEstate() {
   const router = useRouter();
@@ -93,24 +104,16 @@ export default function LuxeEstate() {
     setSelectedProp(property);
     setPage('detail');
   };
-  
 
-  // ── FEATURED ROTATION FOR HOMEPAGE ──
-  const shuffle = <T,>(arr: T[]): T[] => {
-    const copy = [...arr];
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-  };
-
-  const featured = properties.filter(p => p.is_featured);
-  const nonFeatured = properties.filter(p => !p.is_featured);
-  const homepageProps = [
-    ...shuffle(featured),
-    ...shuffle(nonFeatured),
-  ].slice(0, 3);
+  // Memoize homepage properties to avoid recalculating on every render
+  const homepageProps = useMemo(() => {
+    const featured = properties.filter(p => p.is_featured);
+    const nonFeatured = properties.filter(p => !p.is_featured);
+    return [
+      ...shuffle(featured),
+      ...shuffle(nonFeatured),
+    ].slice(0, 3);
+  }, [properties]);
 
   return (
     <div className={`luxe-root ${dark ? 'dark-mode' : ''}`}>
@@ -216,6 +219,10 @@ export default function LuxeEstate() {
                   ))}
                 </div>
               )}
+            </section>
+            {/* Newsletter signup */}
+            <section style={{ padding: '0 24px 80px', maxWidth: 1200, margin: '0 auto' }}>
+              <NewsletterSignup />
             </section>
           </>
         )}

@@ -44,4 +44,9 @@ export const adminApi = {
     apiRequest<AdminUser>(`/admin/users/${id}/premium`, {
       method: "PUT", token,
     }),
+
+  deleteUser: (id: string, token: string) =>
+    apiRequest<{ message: string }>(`/admin/users/${id}`, {
+      method: "DELETE", token,
+    }),
 };

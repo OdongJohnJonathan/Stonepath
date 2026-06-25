@@ -19,8 +19,9 @@ import shortStaysRoutes from "./routes/shortStays.routes.js";
 import paymentsRoutes from "./routes/payments.routes.js";
 import inspectionsRoutes from "./routes/inspections.routes.js";
 import serviceProvidersRoutes from "./routes/serviceProviders.routes.js";
+import newsletterRoutes from "./routes/newsletter.routes.js";
 
-// Initialize express app
+// ✅ Initialize express app FIRST (before using it)
 const app = express();
 
 // ── DATABASE MAINTENANCE ──────────────────────────
@@ -104,6 +105,7 @@ app.use("/admin", adminRoutes);
 app.use("/inspections", inspectionsRoutes);
 app.use("/short-stays", shortStaysRoutes);
 app.use("/service-providers", serviceProvidersRoutes);
+app.use("/newsletter", newsletterRoutes);
 
 // ── HEALTH CHECK ──────────────────────────────────
 app.get("/health", (req, res) => res.json({

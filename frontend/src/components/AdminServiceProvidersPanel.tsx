@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { serviceProvidersApi, type ServiceProvider } from "@/lib/api/serviceProviders";
 import { useAuth } from "@/context/AuthContext";
 
@@ -11,21 +11,26 @@ export default function AdminServiceProvidersPanel() {
   const [updating, setUpdating]     = useState<string | null>(null);
   const [filter, setFilter]         = useState<"all" | "pending" | "approved" | "rejected">("pending");
 
-  const fetchProviders = useCallback(() => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
     if (!token) return;
     setLoading(true);
-    void serviceProvidersApi.getAllForAdmin(token)
+    serviceProvidersApi.getAllForAdmin(token)
       .then(setProviders)
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [token]);
 
-  useEffect(() => { fetchProviders(); }, [fetchProviders]);
-
   const handleApprove = async (id: string) => {
     if (!token) return;
     setUpdating(id);
-    try { await serviceProvidersApi.approve(id, token); fetchProviders(); }
+    try { 
+      await serviceProvidersApi.approve(id, token);
+      if (token) {
+        const updated = await serviceProvidersApi.getAllForAdmin(token);
+        setProviders(updated);
+      }
+    }
     catch (err) { console.error(err); }
     finally { setUpdating(null); }
   };
@@ -33,7 +38,13 @@ export default function AdminServiceProvidersPanel() {
   const handleReject = async (id: string) => {
     if (!token) return;
     setUpdating(id);
-    try { await serviceProvidersApi.reject(id, token); fetchProviders(); }
+    try { 
+      await serviceProvidersApi.reject(id, token);
+      if (token) {
+        const updated = await serviceProvidersApi.getAllForAdmin(token);
+        setProviders(updated);
+      }
+    }
     catch (err) { console.error(err); }
     finally { setUpdating(null); }
   };
@@ -41,7 +52,13 @@ export default function AdminServiceProvidersPanel() {
   const handleToggleVerified = async (id: string) => {
     if (!token) return;
     setUpdating(id);
-    try { await serviceProvidersApi.toggleVerified(id, token); fetchProviders(); }
+    try { 
+      await serviceProvidersApi.toggleVerified(id, token);
+      if (token) {
+        const updated = await serviceProvidersApi.getAllForAdmin(token);
+        setProviders(updated);
+      }
+    }
     catch (err) { console.error(err); }
     finally { setUpdating(null); }
   };
@@ -49,7 +66,13 @@ export default function AdminServiceProvidersPanel() {
   const handleDelete = async (id: string) => {
     if (!token || !window.confirm("Permanently remove this listing?")) return;
     setUpdating(id);
-    try { await serviceProvidersApi.delete(id, token); fetchProviders(); }
+    try { 
+      await serviceProvidersApi.delete(id, token);
+      if (token) {
+        const updated = await serviceProvidersApi.getAllForAdmin(token);
+        setProviders(updated);
+      }
+    }
     catch (err) { console.error(err); }
     finally { setUpdating(null); }
   };
@@ -176,6 +199,28 @@ export default function AdminServiceProvidersPanel() {
                     {updating === p.id ? "Saving..." : p.is_verified ? "Remove Verified Badge" : "✓ Mark as Verified"}
                   </button>
                 )}
+
+                {p.status === "approved" && (
+                <select
+                  value={p.tier || "free"}
+                  onChange={async e => {
+                    if (!token) return;
+                    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/service-providers/${p.id}/tier`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ tier: e.target.value }),
+                    });
+                    if (token) {
+                      const updated = await serviceProvidersApi.getAllForAdmin(token);
+                      setProviders(updated);
+                    }
+                  }}
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", padding: "4px 8px", fontSize: 11, fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                  <option value="free">Free (contacts hidden)</option>
+                  <option value="standard">Standard (contacts visible)</option>
+                  <option value="featured">Featured (top of search)</option>
+                </select>
+              )}
 
                 {p.status === "rejected" && (
                   <button onClick={() => handleDelete(p.id)} disabled={updating === p.id}

@@ -271,6 +271,26 @@ router.put("/:id/reject", authenticate, async (req, res) => {
   }
 });
 
+// PUT /service-providers/:id/tier (admin only)
+router.put("/:id/tier", authenticate, async (req, res) => {
+  if (!isAdmin(req.user.role)) return res.status(403).json({ error: "Admin access required" });
+  const { tier } = req.body;
+  if (!["free", "standard", "featured"].includes(tier)) {
+    return res.status(400).json({ error: "Invalid tier" });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE service_providers SET tier = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [tier, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Provider not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update tier" });
+  }
+});
+
 // ─────────────────────────────────────────────
 // PUT /service-providers/:id/verify  (admin only — "trusted" badge)
 // ─────────────────────────────────────────────
@@ -308,6 +328,128 @@ router.delete("/:id", authenticate, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete provider" });
+  }
+});
+
+// ─────────────────────────────────────────────
+// POST /service-providers/:id/enquiry
+// Public (or authenticated) — send enquiry to a provider
+// ─────────────────────────────────────────────
+router.post("/:id/enquiry", async (req, res) => {
+  const { sender_name, sender_email, sender_phone, message } = req.body;
+
+  if (!sender_name || !sender_email || !message) {
+    return res.status(400).json({ error: "Name, email and message are required" });
+  }
+
+  try {
+    // Verify provider exists and is approved
+    const provResult = await pool.query(
+      `SELECT sp.*, u.email AS owner_email, u.first_name AS owner_first_name
+       FROM service_providers sp
+       JOIN users u ON u.id = sp.user_id
+       WHERE sp.id = $1 AND sp.status = 'approved' AND sp.deleted_at IS NULL`,
+      [req.params.id]
+    );
+    if (provResult.rows.length === 0) {
+      return res.status(404).json({ error: "Service provider not found" });
+    }
+    const provider = provResult.rows[0];
+
+    // Save enquiry to database
+    const enquiry = await pool.query(
+      `INSERT INTO service_provider_enquiries
+         (provider_id, sender_name, sender_email, sender_phone, message)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.params.id, sender_name, sender_email, sender_phone || null, message]
+    );
+
+    // Email notification to the provider
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
+    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
+    try {
+      await resend.emails.send({
+        from: FROM,
+        to: provider.owner_email,
+        subject: `New enquiry for "${provider.business_name}"`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;">
+            <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath™</h1>
+            <h2 style="font-size:20px;font-weight:400;margin-bottom:4px;">New Service Enquiry</h2>
+            <p style="color:#8892a4;font-size:13px;margin-bottom:28px;">Someone is interested in your services.</p>
+
+            <div style="background:#1a1a1a;border-left:3px solid #c9a84c;padding:16px;margin-bottom:16px;">
+              <div style="font-size:11px;color:#c9a84c;text-transform:uppercase;margin-bottom:6px;">Your Business</div>
+              <div style="font-size:16px;">${provider.business_name}</div>
+            </div>
+
+            <div style="background:#1a1a1a;padding:16px;margin-bottom:16px;">
+              <div style="font-size:11px;color:#8892a4;text-transform:uppercase;margin-bottom:12px;">From</div>
+              <div style="margin-bottom:6px;"><span style="color:#8892a4;">Name:</span> ${sender_name}</div>
+              <div style="margin-bottom:6px;"><span style="color:#8892a4;">Email:</span> <a href="mailto:${sender_email}" style="color:#c9a84c;">${sender_email}</a></div>
+              ${sender_phone ? `<div><span style="color:#8892a4;">Phone:</span> ${sender_phone}</div>` : ""}
+            </div>
+
+            <div style="background:#1a1a1a;border-left:3px solid #22c55e;padding:16px;margin-bottom:28px;">
+              <div style="font-size:11px;color:#22c55e;text-transform:uppercase;margin-bottom:8px;">Message</div>
+              <p style="color:#fff;line-height:1.6;margin:0;">${message}</p>
+            </div>
+
+            <a href="${FRONTEND_URL}" style="background:#c9a84c;color:#000;padding:14px 32px;text-decoration:none;font-weight:600;font-size:13px;text-transform:uppercase;display:inline-block;">
+              View on Stonepath
+            </a>
+            <p style="color:#555;font-size:12px;margin-top:32px;">
+              Hi ${provider.owner_first_name}, log in to your Stonepath dashboard to manage this enquiry.
+            </p>
+          </div>`,
+      });
+    } catch (emailErr) {
+      console.error("Enquiry email failed:", emailErr.message);
+      // Don't fail the request if email fails
+    }
+
+    return res.status(201).json({ message: "Enquiry sent successfully", id: enquiry.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to send enquiry" });
+  }
+});
+
+// ─────────────────────────────────────────────
+// GET /service-providers/mine/enquiries
+// Provider — see all enquiries sent to their business
+// ─────────────────────────────────────────────
+router.get("/mine/enquiries", authenticate, async (req, res) => {
+  try {
+    const providerResult = await pool.query(
+      "SELECT id FROM service_providers WHERE user_id = $1 AND deleted_at IS NULL",
+      [req.user.id]
+    );
+    if (providerResult.rows.length === 0) {
+      return res.status(404).json({ error: "No provider profile found" });
+    }
+    const providerId = providerResult.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT * FROM service_provider_enquiries
+       WHERE provider_id = $1
+       ORDER BY created_at DESC`,
+      [providerId]
+    );
+
+    // Mark all as read
+    await pool.query(
+      "UPDATE service_provider_enquiries SET status = 'read' WHERE provider_id = $1 AND status = 'unread'",
+      [providerId]
+    );
+
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch enquiries" });
   }
 });
 
