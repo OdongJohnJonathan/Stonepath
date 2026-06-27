@@ -265,7 +265,7 @@ export default function PropertyDetail({ property, onBack, onViewAgent }: Proper
                   🚪 {property.amenities.office_units as number} Units
                 </span>
               )}
-              {property.amenities?.zoning && (
+              {Boolean(property.amenities?.zoning) && (
                 <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2, textTransform: 'capitalize' }}>
                   🗺️ {String(property.amenities.zoning)} Zoning
                 </span>
