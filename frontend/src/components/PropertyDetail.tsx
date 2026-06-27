@@ -267,7 +267,7 @@ export default function PropertyDetail({ property, onBack, onViewAgent }: Proper
               )}
               {Boolean(property.amenities?.zoning) && (
                 <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '6px 12px', fontSize: 12, borderRadius: 2, textTransform: 'capitalize' }}>
-                  🗺️ {String(property.amenities.zoning)} Zoning
+                  🗺️ {String(property.amenities?.zoning)} Zoning
                 </span>
               )}
               {!amenityTags.some(a => property.amenities?.[a.key]) && !property.amenities?.floors && !property.amenities?.zoning && (
