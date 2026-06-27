@@ -25,6 +25,7 @@ export interface Property {
   latitude?: number;
   longitude?: number;
   agent_verified?: boolean;
+  agent_name?: string;
   created_by?: string;
   created_at?: string;
 }
