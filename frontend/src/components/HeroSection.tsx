@@ -77,65 +77,77 @@ export default function HeroSection({ onSearch, dark }: HeroSectionProps) {
         <div className="glass fade-up stagger-2" style={{ borderRadius: 4, padding: '0', overflow: 'hidden' }}>
 
           {/* Main search */}
+          {/* Search Card */}
+        <div className="glass fade-up stagger-2" style={{ borderRadius: 4, overflow: 'hidden' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
+
             {/* Location input */}
-            <div style={{ flex: '2 1 200px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              flex: '1 1 200px',
+              padding: '14px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', gap: 10,
+              minWidth: 0,
+            }}>
               <Icons.MapPin />
               <input
                 className="search-input"
-                placeholder="City or area, e.g. Kampala, Nairobi…"
+                placeholder="City or area, e.g. Kampala…"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                style={{ fontSize: 14, minWidth: 0 }}
               />
             </div>
 
-            {/* Property type */}
-            <div style={{ flex: '1 1 140px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
-              <Icons.Building />
-              <select style={{ color: 'rgba(255,255,255,0.5)' }} value={propType} onChange={e => setPropType(e.target.value)}>
-                <option value="">Property Type</option>
-                <option value="residential">Residential</option>
-                <option value="commercial">Commercial</option>
-                <option value="land">Land</option>
-              </select>
+            {/* Property type + Listing type row — side by side on mobile */}
+            <div style={{ display: 'flex', flex: '1 1 100%', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ flex: 1, padding: '14px 16px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', minWidth: 0 }}>
+                <Icons.Building />
+                <select className="search-input" style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }} value={propType} onChange={e => setPropType(e.target.value)}>
+                  <option value="">Type</option>
+                  <option value="residential">Residential</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="land">Land</option>
+                </select>
+              </div>
+              <div style={{ flex: 1, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', minWidth: 0 }}>
+                <Icons.Check />
+                <select className="search-input" style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }} value={transactionType} onChange={e => setTransactionType(e.target.value)}>
+                  <option value="">Listing</option>
+                  <option value="sale">For Sale</option>
+                  <option value="rent">For Rent</option>
+                  <option value="short_stay">Short Stay</option>
+                </select>
+              </div>
             </div>
 
-            {/* Listing type */}
-            <div style={{ flex: '1 1 130px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
-              <Icons.Check />
-              <select style={{ color: 'rgba(255,255,255,0.5)' }} value={transactionType} onChange={e => setTransactionType(e.target.value)}>
-                <option value="">Listing Type</option>
-                <option value="sale">For Sale</option>
-                <option value="rent">For Rent</option>
-                <option value="short_stay">Short Stay</option>
-              </select>
+            {/* Price + Search button row */}
+            <div style={{ display: 'flex', flex: '1 1 100%' }}>
+              <div style={{ flex: 1, padding: '14px 16px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', minWidth: 0 }}>
+                <Icons.DollarSign />
+                <select className="search-input" style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }} value={priceRange} onChange={e => setPriceRange(e.target.value)}>
+                  <option value="">Max Price</option>
+                  <option value="0-50M">Under UGX 50M</option>
+                  <option value="50M-200M">UGX 50M – 200M</option>
+                  <option value="200M-500M">UGX 200M – 500M</option>
+                  <option value="500M+">UGX 500M+</option>
+                </select>
+              </div>
+              <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
+                <button className="luxe-btn" onClick={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', whiteSpace: 'nowrap' }}>
+                  <Icons.Search />
+                  <span>Search</span>
+                </button>
+              </div>
             </div>
 
-            {/* Price range */}
-            <div style={{ flex: '1 1 140px', padding: '16px 20px', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)' }}>
-              <Icons.DollarSign />
-              <select style={{ color: 'rgba(255,255,255,0.5)' }} value={priceRange} onChange={e => setPriceRange(e.target.value)}>
-                <option value="">Max Price</option>
-                <option value="0-50M">Under UGX 50M</option>
-                <option value="50M-200M">UGX 50M – 200M</option>
-                <option value="200M-500M">UGX 200M – 500M</option>
-                <option value="500M+">UGX 500M+</option>
-              </select>
-            </div>
-
-            {/* Search btn */}
-            <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', padding: '12px' }}>
-              <button className="luxe-btn" onClick={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px' }}>
-                <Icons.Search />
-                <span className="hide-mobile">Search</span>
-              </button>
-            </div>
           </div>
+        </div>
         </div>
 
         {/* Stats */}
-        <div className="fade-up stagger-3" style={{ display: 'flex', gap: 32, marginTop: 32, paddingTop: 24 }}>
+        <div className="hero-stats fade-up stagger-3" style={{ display: 'flex', gap: 32, marginTop: 32, paddingTop: 24 }}>
           {[['2,400+', 'Premium Listings'], ['UGX 4.2B+', 'Properties Sold'], ['98%', 'Client Satisfaction']].map(([val, label]) => (
             <div key={label}>
               <div className="font-serif" style={{ fontSize: 24, fontWeight: 400, color: 'white' }}>{val}</div>

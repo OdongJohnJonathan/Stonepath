@@ -164,7 +164,7 @@ export default function RegisterPage() {
             {/* Role Selection */}
             <div>
               <label style={labelStyle}>I am a</label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div className="role-picker-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   { role: 1, label: "Buyer", desc: "Browse & save properties", icon: "🏠" },
                   { role: 2, label: "Agent", desc: "List & manage properties", icon: "🏢" },

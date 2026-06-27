@@ -111,7 +111,7 @@ export default function ServicesDirectory({ onSelectProvider }: Props) {
           No service providers found{search ? ` for "${search}"` : ""}.
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+        <div className="services-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
           {providers.map(p => (
             <div
               key={p.id}
