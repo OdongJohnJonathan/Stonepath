@@ -45,14 +45,15 @@ export const getProperties = async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(
-      `SELECT p.*, u.is_agent_verified as agent_verified
-       FROM properties p
-       LEFT JOIN users u ON p.created_by = u.id
-       ${whereClause}
-       ORDER BY p.is_featured DESC, p.created_at DESC
-       LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
-      [...values, limit, offset]
-    );
+  `SELECT p.*, u.is_agent_verified as agent_verified,
+          CONCAT(u.first_name, ' ', u.last_name) as agent_name
+   FROM properties p
+   LEFT JOIN users u ON p.created_by = u.id
+   ${whereClause}
+   ORDER BY p.is_featured DESC, p.created_at DESC
+   LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+  [...values, limit, offset]
+);
 
     res.json(result.rows);
   } catch (err) {

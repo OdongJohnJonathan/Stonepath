@@ -13,4 +13,6 @@ export interface Property {
   agent: string;
   views: number;
   rating: number;
+  agent_name?: string;
+  agent_verified?: boolean;
 }
