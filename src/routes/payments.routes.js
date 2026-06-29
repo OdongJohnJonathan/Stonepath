@@ -223,7 +223,7 @@ router.get("/status/:paymentId", authenticate, async (req, res) => {
   try {
     const { paymentId } = req.params;
     const result = await pool.query(
-      "SELECT * FROM payments WHERE id = $1 AND user_id = $2",
+      "SELECT * FROM payments WHERE (id::text = $1 OR provider_reference = $1) AND user_id = $2",
       [paymentId, req.user.id]
     );
     if (result.rows.length === 0) {
@@ -232,8 +232,8 @@ router.get("/status/:paymentId", authenticate, async (req, res) => {
 
     let payment = result.rows[0];
     if (payment.status === "pending" && payment.provider_reference) {
-      await syncPaymentStatus(paymentId, payment.provider_reference);
-      const refreshed = await pool.query("SELECT * FROM payments WHERE id = $1", [paymentId]);
+      await syncPaymentStatus(payment.id, payment.provider_reference);
+      const refreshed = await pool.query("SELECT * FROM payments WHERE id = $1", [payment.id]);
       payment = refreshed.rows[0];
     }
 
