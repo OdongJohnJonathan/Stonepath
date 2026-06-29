@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../db.js";
 import { authenticate } from "../../middleware/auth.js";
+import { submitOrderRequest, getTransactionStatus } from "../utils/pesapal.js";
 
 const router = express.Router();
 const isAdmin = (role) => [3, 4].includes(Number(role)); // Moderator or Super Admin
@@ -39,7 +40,6 @@ router.post("/premium", authenticate, async (req, res) => {
       [req.user.id, amount, plan, phone_number, provider || 'mtn']
     );
 
-    // In development — activate immediately for testing
     if (process.env.NODE_ENV !== 'production') {
       await activatePremium(req.user.id, plan);
       await pool.query(
@@ -52,10 +52,34 @@ router.post("/premium", authenticate, async (req, res) => {
       });
     }
 
-    // In production — this will trigger real mobile money request (Phase 3)
+    const userRes = await pool.query(
+      "SELECT email, first_name, last_name FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    const u = userRes.rows[0];
+
+    const order = await submitOrderRequest({
+      amount,
+      currency: "UGX",
+      description: `Stonepath Estates - Premium (${plan})`,
+      merchantReference: payment.rows[0].id,
+      callbackUrl: `${process.env.FRONTEND_URL}/payments/callback`,
+      email: u.email,
+      phoneNumber: phone_number,
+      firstName: u.first_name,
+      lastName: u.last_name,
+    });
+
+    await pool.query(
+      "UPDATE payments SET provider_reference = $1, updated_at = NOW() WHERE id = $2",
+      [order.order_tracking_id, payment.rows[0].id]
+    );
+
     res.json({
-      message: "Payment initiated. Check your phone for the payment prompt.",
+      message: "Payment initiated. Complete payment to activate Premium.",
       payment_id: payment.rows[0].id,
+      redirect_url: order.redirect_url,
+      order_tracking_id: order.order_tracking_id,
       amount,
     });
   } catch (err) {
@@ -103,9 +127,34 @@ router.post("/feature", authenticate, async (req, res) => {
       });
     }
 
+    const userRes = await pool.query(
+      "SELECT email, first_name, last_name FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    const u = userRes.rows[0];
+
+    const order = await submitOrderRequest({
+      amount,
+      currency: "UGX",
+      description: `Stonepath Estates - Featured Listing (${days} days)`,
+      merchantReference: payment.rows[0].id,
+      callbackUrl: `${process.env.FRONTEND_URL}/payments/callback`,
+      email: u.email,
+      phoneNumber: phone_number,
+      firstName: u.first_name,
+      lastName: u.last_name,
+    });
+
+    await pool.query(
+      "UPDATE payments SET provider_reference = $1, updated_at = NOW() WHERE id = $2",
+      [order.order_tracking_id, payment.rows[0].id]
+    );
+
     res.json({
-      message: "Payment initiated. Check your phone for the payment prompt.",
+      message: "Payment initiated. Complete payment to feature your listing.",
       payment_id: payment.rows[0].id,
+      redirect_url: order.redirect_url,
+      order_tracking_id: order.order_tracking_id,
       amount,
     });
   } catch (err) {
@@ -148,6 +197,80 @@ router.post("/callback", async (req, res) => {
     res.status(500).json({ error: "Callback failed" });
   }
 });
+
+router.get("/ipn", async (req, res) => {
+  try {
+    const { OrderTrackingId, OrderMerchantReference } = req.query;
+    if (!OrderTrackingId) {
+      return res.status(400).json({ error: "Missing OrderTrackingId" });
+    }
+
+    await syncPaymentStatus(OrderMerchantReference, OrderTrackingId);
+
+    res.json({
+      orderNotificationType: "IPNCHANGE",
+      orderTrackingId: OrderTrackingId,
+      orderMerchantReference: OrderMerchantReference,
+      status: 200,
+    });
+  } catch (err) {
+    console.error("IPN handling error:", err);
+    res.status(500).json({ error: "IPN processing failed" });
+  }
+});
+
+router.get("/status/:paymentId", authenticate, async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const result = await pool.query(
+      "SELECT * FROM payments WHERE id = $1 AND user_id = $2",
+      [paymentId, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Payment not found" });
+    }
+
+    let payment = result.rows[0];
+    if (payment.status === "pending" && payment.provider_reference) {
+      await syncPaymentStatus(paymentId, payment.provider_reference);
+      const refreshed = await pool.query("SELECT * FROM payments WHERE id = $1", [paymentId]);
+      payment = refreshed.rows[0];
+    }
+
+    res.json(payment);
+  } catch (err) {
+    console.error("Payment status check error:", err);
+    res.status(500).json({ error: "Failed to check payment status" });
+  }
+});
+
+function mapPesapalStatus(pesapalStatus) {
+  const code = pesapalStatus?.status_code;
+  if (code === 1) return "completed";
+  if (code === 2) return "failed";
+  if (code === 3) return "reversed";
+  return "pending";
+}
+
+async function syncPaymentStatus(merchantReference, orderTrackingId) {
+  const pesapalStatus = await getTransactionStatus(orderTrackingId);
+  const newStatus = mapPesapalStatus(pesapalStatus);
+
+  const result = await pool.query(
+    `UPDATE payments SET status = $1, updated_at = NOW()
+     WHERE id = $2 OR provider_reference = $3
+     RETURNING *`,
+    [newStatus, merchantReference, orderTrackingId]
+  );
+
+  if (result.rows.length === 0) return;
+  const p = result.rows[0];
+
+  if (newStatus === "completed") {
+    if (p.type === "premium") await activatePremium(p.user_id, p.plan);
+    if (p.type === "featured") await activateFeatured(p.property_id, p.days);
+  }
+}
 
 async function activatePremium(userId, plan) {
   const months = plan === 'yearly' ? 12 : 1;
