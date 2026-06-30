@@ -62,8 +62,8 @@ export default function MapView({ activePin, setActivePin, properties, onSelectP
           : (property.amenities?.price as number | undefined);
         const priceLabel = price
           ? price >= 1000000
-            ? `${property.currency || 'UGX'} ${(price / 1000000).toFixed(1)}M${isShortStayPin ? '/night' : ''}`
-            : `${property.currency || 'UGX'} ${(price / 1000).toFixed(0)}K${isShortStayPin ? '/night' : ''}`
+            ? `${property.currency || 'UGX'} ${(price / 1000000).toFixed(1)}M${isShortStayPin ? '/day' : ''}`
+            : `${property.currency || 'UGX'} ${(price / 1000).toFixed(0)}K${isShortStayPin ? '/day' : ''}`
           : "POA";
 
         const tInfo = typeInfo[property.transaction_type_id || 1] || typeInfo[1];
@@ -93,6 +93,8 @@ export default function MapView({ activePin, setActivePin, properties, onSelectP
         });
 
         const popupId = `map-popup-view-${property.id}`;
+        const googleMapsUrl = `https://maps.google.com/?q=${property.latitude},${property.longitude}`;
+        const appleMapsUrl = `https://maps.apple.com/?ll=${property.latitude},${property.longitude}&q=${encodeURIComponent(property.title)}`;
 
         const marker = L.marker([property.latitude, property.longitude], { icon })
           .addTo(map)
@@ -103,6 +105,10 @@ export default function MapView({ activePin, setActivePin, properties, onSelectP
               <div style="color:#666; font-size:12px; margin-bottom:4px;">📍 ${property.location}</div>
               <div style="color:${tInfo.color}; font-weight:700; margin-bottom:8px;">${priceLabel}</div>
               ${property.bedrooms ? `<div style="font-size:11px; color:#888; margin-bottom:8px;">🛏 ${property.bedrooms} beds · 🚿 ${property.bathrooms} baths</div>` : ''}
+              <div style="display:flex; gap:6px; margin-bottom:8px;">
+                <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; text-align:center; border:1px solid #ddd; color:#333; padding:5px; font-size:10px; text-decoration:none; border-radius:2px;">Google Maps</a>
+                <a href="${appleMapsUrl}" target="_blank" rel="noopener noreferrer" style="flex:1; text-align:center; border:1px solid #ddd; color:#333; padding:5px; font-size:10px; text-decoration:none; border-radius:2px;">Apple Maps</a>
+              </div>
               ${onSelectProperty ? `<button id="${popupId}" style="width:100%; background:${tInfo.color}; border:none; color:#000; padding:8px; font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer; border-radius:2px; font-family:'DM Sans', sans-serif;">View Details</button>` : ''}
             </div>
           `, { maxWidth: 240 });

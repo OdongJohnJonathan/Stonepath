@@ -219,14 +219,34 @@ export default function PropertyDetail({ property, onBack, onViewAgent }: Proper
             {property.bathrooms !== undefined && property.bathrooms > 0 && <span>🚿 {property.bathrooms} Baths</span>}
             {property.square_footage && <span>📐 {property.square_footage.toLocaleString()} Sqft</span>}
             {isShortStay && maxGuests > 0 && <span>👥 Up to {maxGuests} guests</span>}
-            {isShortStay && minNights > 1 && <span>🌙 Min {minNights} nights</span>}
+            {isShortStay && minNights > 1 && <span>🌙 Min {minNights} days</span>}
           </div>
 
           {/* ── LOCATION MAP ── (its own clean section) */}
           {property.latitude && property.longitude && (
             <div style={{ border: '1px solid var(--border)', borderRadius: 2, marginBottom: 28, overflow: 'hidden' }}>
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                📍 Location
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  📍 Location
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <a
+                    href={`https://maps.google.com/?q=${property.latitude},${property.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 11, color: 'var(--gold)', border: '1px solid var(--border)', padding: '5px 10px', borderRadius: 2, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                  >
+                    Open in Google Maps
+                  </a>
+                  <a
+                    href={`https://maps.apple.com/?ll=${property.latitude},${property.longitude}&q=${encodeURIComponent(property.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 11, color: 'var(--gold)', border: '1px solid var(--border)', padding: '5px 10px', borderRadius: 2, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                  >
+                    Open in Apple Maps
+                  </a>
+                </div>
               </div>
               <div style={{ height: 320 }}>
                 <MapView
@@ -286,15 +306,15 @@ export default function PropertyDetail({ property, onBack, onViewAgent }: Proper
             {isShortStay ? (
               <>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  Nightly Rate
+                  Daily Rate
                 </div>
                 <div style={{ fontSize: 28, color: 'var(--gold)', fontFamily: 'Cormorant Garamond, serif' }}>
                   {dailyRate > 0 ? `${property.currency || 'UGX'} ${dailyRate.toLocaleString()}` : 'Rate on request'}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>per night</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>per day</div>
                 {minNights > 1 && (
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                    Minimum stay: {minNights} nights
+                    Minimum stay: {minNights} days
                   </div>
                 )}
               </>
@@ -320,7 +340,7 @@ export default function PropertyDetail({ property, onBack, onViewAgent }: Proper
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.6 }}>
                 {dailyRate > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span>Nightly rate</span>
+                    <span>Daily rate</span>
                     <strong style={{ color: 'var(--gold)' }}>{property.currency || 'UGX'} {dailyRate.toLocaleString()}</strong>
                   </div>
                 )}
@@ -332,7 +352,7 @@ export default function PropertyDetail({ property, onBack, onViewAgent }: Proper
                 )}
                 {minNights > 1 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Min nights</span>
+                    <span>Min days</span>
                     <span>{minNights}</span>
                   </div>
                 )}
@@ -554,7 +574,7 @@ export default function PropertyDetail({ property, onBack, onViewAgent }: Proper
               )}
               {isShortStay && minNights > 1 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Min Nights</span><span style={{ color: 'var(--text)' }}>{minNights}</span>
+                  <span>Min Days</span><span style={{ color: 'var(--text)' }}>{minNights}</span>
                 </div>
               )}
               {property.currency && (

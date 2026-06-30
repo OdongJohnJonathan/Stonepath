@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authApi } from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
 import { UGANDA_DISTRICTS, SUPPORTED_COUNTRIES } from "@/lib/ugandaDistricts";
+import { uploadImage } from "@/lib/uploadImage";
 
 interface ServiceCategory {
   id: number;
@@ -41,7 +41,6 @@ const SERVICE_CATEGORIES: ServiceCategory[] = [
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuth();
 
   const [form, setForm] = useState({
     first_name: "",
@@ -59,12 +58,35 @@ export default function RegisterPage() {
     district: "",
     location: "",
     years_experience: "",
+    logo_url: "",
   });
   const [categoryIds, setCategoryIds] = useState<number[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const [oauthMessage, setOauthMessage] = useState("");
 
   const isServiceProvider = form.role === 5;
+
+  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5MB."); return; }
+
+    setLogoUploading(true);
+    setError("");
+    try {
+      const url = await uploadImage(file);
+      setForm(f => ({ ...f, logo_url: url }));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload photo.");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -74,6 +96,15 @@ export default function RegisterPage() {
       setForm(f => ({ ...f, [name]: value }));
     }
     setError("");
+  };
+
+  const handleOAuth = async (provider: "google" | "apple") => {
+    setOauthMessage("");
+    try {
+      await authApi.oauthStub(provider);
+    } catch (err: unknown) {
+      setOauthMessage(err instanceof Error ? err.message : `${provider} sign-in is not available yet.`);
+    }
   };
 
   const toggleCategory = (id: number) => {
@@ -86,20 +117,20 @@ export default function RegisterPage() {
     setError("");
     if (form.password !== form.confirm_password) { setError("Passwords do not match."); return; }
     if (form.password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (!form.phone_number.trim()) { setError("Phone number is required."); return; }
     if (isServiceProvider) {
       if (!form.business_name.trim()) { setError("Business name is required."); return; }
       if (!form.business_description.trim()) { setError("Please describe your service."); return; }
-      if (!form.phone_number.trim()) { setError("Phone number is required for service providers."); return; }
       if (categoryIds.length === 0) { setError("Select at least one service category."); return; }
     }
     setLoading(true);
     try {
-      const { token } = await authApi.register({
+      await authApi.register({
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
         password: form.password,
-        phone_number: form.phone_number || undefined,
+        phone_number: form.phone_number,
         role: form.role,
         ...(isServiceProvider ? {
           business_name: form.business_name,
@@ -110,10 +141,10 @@ export default function RegisterPage() {
           location: form.location || undefined,
           whatsapp: form.whatsapp || undefined,
           years_experience: form.years_experience ? parseInt(form.years_experience) : undefined,
+          logo_url: form.logo_url || undefined,
         } : {}),
       });
-      await login(token);
-      router.push("/");
+      setRegistered(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
     } finally {
@@ -143,13 +174,25 @@ export default function RegisterPage() {
 
         {/* Logo */}
         <div onClick={() => router.push("/")} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40, cursor: "pointer", justifyContent: "center" }}>
-          <div style={{ width: 28, height: 28, border: "1px solid #c9a84c", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 12, height: 12, background: "#c9a84c", transform: "rotate(45deg)" }} />
-          </div>
-          <span style={{ fontSize: 22, color: "white", fontFamily: "Cormorant Garamond, serif" }}>Stonepath™</span>
+          <img src="/logo.png" alt="Stonepath Estates" style={{ height: 36, width: 36, borderRadius: "50%", objectFit: "cover" }} />
+          <span style={{ fontSize: 22, color: "white", fontFamily: "Cormorant Garamond, serif" }}>Stonepath Estates</span>
         </div>
 
         <div style={{ background: "rgba(13,15,26,0.85)", border: "1px solid rgba(201,168,76,0.2)", backdropFilter: "blur(24px)", padding: "40px 36px" }}>
+          {registered ? (
+            <>
+              <p style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c9a84c", marginBottom: 8 }}>Almost There</p>
+              <h1 style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 32, fontWeight: 300, color: "white", marginBottom: 16 }}>Verify Your Email</h1>
+              <p style={{ fontSize: 14, color: "#8892a4", lineHeight: 1.7, marginBottom: 28 }}>
+                We&apos;ve sent a verification link to <strong style={{ color: "white" }}>{form.email}</strong>. Please check your inbox and click the link to activate your account before signing in.
+              </p>
+              <button onClick={() => router.push("/login")}
+                style={{ width: "100%", background: "#c9a84c", border: "none", color: "#0a0a0b", padding: "14px", fontSize: 12, fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                Go to Sign In
+              </button>
+            </>
+          ) : (
+          <>
           <p style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c9a84c", marginBottom: 8 }}>Get Started</p>
           <h1 style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 32, fontWeight: 300, color: "white", marginBottom: 32 }}>Create Account</h1>
 
@@ -206,14 +249,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label style={labelStyle}>
-                Phone Number{" "}
-                {!isServiceProvider && (
-                  <span style={{ color: "rgba(136,146,164,0.6)", textTransform: "none", fontSize: 11 }}>(optional)</span>
-                )}
-              </label>
+              <label style={labelStyle}>Phone Number</label>
               <input name="phone_number" type="tel" value={form.phone_number} onChange={handleChange}
-                required={isServiceProvider} placeholder="+256 700 000 000" style={inputStyle} />
+                required placeholder="+256 700 000 000" style={inputStyle} />
             </div>
 
             {/* ── SERVICE PROVIDER SPECIFIC FIELDS ── */}
@@ -223,6 +261,23 @@ export default function RegisterPage() {
                   <p style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#c9a84c", marginBottom: 16 }}>
                     Business Details
                   </p>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Profile Picture / Logo <span style={{ color: "rgba(136,146,164,0.6)", textTransform: "none" }}>(optional)</span></label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", border: "1px solid rgba(201,168,76,0.2)", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {form.logo_url ? (
+                        <img src={form.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <span style={{ fontSize: 20 }}>🛠️</span>
+                      )}
+                    </div>
+                    <label style={{ fontSize: 12, color: "#c9a84c", border: "1px solid rgba(201,168,76,0.3)", padding: "8px 14px", cursor: logoUploading ? "wait" : "pointer" }}>
+                      {logoUploading ? "Uploading…" : form.logo_url ? "Change photo" : "Upload photo"}
+                      <input type="file" accept="image/*" onChange={handleLogoSelect} disabled={logoUploading} style={{ display: "none" }} />
+                    </label>
+                  </div>
                 </div>
 
                 <div>
@@ -339,10 +394,26 @@ export default function RegisterPage() {
             <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
           </div>
 
+          <div style={{ display: "flex", gap: 10, marginBottom: oauthMessage ? 12 : 24 }}>
+            <button type="button" onClick={() => handleOAuth("google")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.2)", color: "white", padding: "11px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <span style={{ fontWeight: 700, color: "#c9a84c" }}>G</span> Google
+            </button>
+            <button type="button" onClick={() => handleOAuth("apple")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.2)", color: "white", padding: "11px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <span style={{ fontWeight: 700, color: "#c9a84c" }}></span> Apple
+            </button>
+          </div>
+          {oauthMessage && (
+            <p style={{ textAlign: "center", fontSize: 12, color: "#8892a4", marginBottom: 24 }}>{oauthMessage}</p>
+          )}
+
           <p style={{ textAlign: "center", fontSize: 13, color: "#8892a4" }}>
             Already have an account?{" "}
             <Link href="/login" style={{ color: "#c9a84c", textDecoration: "none", fontWeight: 500 }}>Sign in</Link>
           </p>
+          </>
+          )}
         </div>
 
         <p style={{ textAlign: "center", marginTop: 24, fontSize: 12 }}>

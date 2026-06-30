@@ -105,7 +105,7 @@ export default function ShortStayBookingModal({ property, onClose }: Props) {
 
     const n = Math.round((new Date(date).getTime() - new Date(checkIn!).getTime()) / 86400000);
     if (n < minNights) {
-      setError(`Minimum stay is ${minNights} night${minNights !== 1 ? "s" : ""}.`);
+      setError(`Minimum stay is ${minNights} day${minNights !== 1 ? "s" : ""}.`);
       return;
     }
 
@@ -200,7 +200,7 @@ export default function ShortStayBookingModal({ property, onClose }: Props) {
             {/* Daily rate banner */}
             {dailyRate > 0 && (
               <div style={{ background: "rgba(201,168,76,0.08)", border: "1px solid var(--border)", padding: "10px 14px", marginBottom: 20, borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rate per night</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rate per day</span>
                 <span style={{ color: "var(--gold)", fontWeight: 600, fontSize: 16 }}>{fmtMoney(dailyRate)}</span>
               </div>
             )}
@@ -257,7 +257,7 @@ export default function ShortStayBookingModal({ property, onClose }: Props) {
                 {nights > 0 && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, color: "var(--text-muted)" }}>
-                      <span>{nights} night{nights !== 1 ? "s" : ""} × {fmtMoney(dailyRate)}</span>
+                      <span>{nights} day{nights !== 1 ? "s" : ""} × {fmtMoney(dailyRate)}</span>
                       <span>{fmtMoney(subtotal)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "var(--text-muted)" }}>

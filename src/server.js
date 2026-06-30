@@ -23,6 +23,7 @@ import newsletterRoutes from "./routes/newsletter.routes.js";
 
 // ✅ Initialize express app FIRST (before using it)
 const app = express();
+app.set("trust proxy", 1);
 
 // ── DATABASE MAINTENANCE ──────────────────────────
 // Check and expire premium accounts every hour

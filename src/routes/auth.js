@@ -13,7 +13,7 @@ router.post('/register', async (req, res) => {
     first_name, last_name, email, password, phone_number, role,
     // Service Provider specific fields (only used when role === 5)
     business_name, business_description, category_ids,
-    country, district, location, whatsapp, years_experience,
+    country, district, location, whatsapp, years_experience, logo_url,
   } = req.body;
 
   if (!first_name || !last_name || !email || !password) {
@@ -21,6 +21,9 @@ router.post('/register', async (req, res) => {
   }
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+  if (!phone_number) {
+    return res.status(400).json({ error: 'Phone number is required' });
   }
 
   // 2 = Agent, 5 = Service Provider, 1 = User (default/regular buyer)
@@ -30,19 +33,17 @@ router.post('/register', async (req, res) => {
     if (!business_name || !business_description || !Array.isArray(category_ids) || category_ids.length === 0) {
       return res.status(400).json({ error: 'Business name, description, and at least one service category are required' });
     }
-    if (!phone_number) {
-      return res.status(400).json({ error: 'Phone number is required for service providers' });
-    }
   }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = await client.query('SELECT id, email FROM users WHERE email = $1 OR phone_number = $2', [email, phone_number]);
     if (existing.rows.length > 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'An account with this email already exists' });
+      const field = existing.rows[0].email === email ? 'email' : 'phone number';
+      return res.status(400).json({ error: `An account with this ${field} already exists` });
     }
 
     const password_hash = await hashPassword(password);
@@ -65,13 +66,13 @@ router.post('/register', async (req, res) => {
       const providerResult = await client.query(
         `INSERT INTO service_providers
           (user_id, business_name, description, phone_number, email, whatsapp,
-           country, district, location, years_experience, status, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',NOW(),NOW())
+           country, district, location, years_experience, logo_url, status, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',NOW(),NOW())
          RETURNING id`,
         [
           user.id, business_name, business_description, phone_number, email,
           whatsapp || null, country || 'Uganda', district || null, location || null,
-          years_experience || null,
+          years_experience || null, logo_url || null,
         ]
       );
       const providerId = providerResult.rows[0].id;
@@ -97,6 +98,10 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ token: generateToken(user) });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      const field = err.constraint?.includes('phone') ? 'phone number' : 'email';
+      return res.status(400).json({ error: `An account with this ${field} already exists` });
+    }
     console.error(err);
     res.status(500).json({ error: err.message });
   } finally {
@@ -128,6 +133,13 @@ router.post('/login', async (req, res) => {
     const isMatch = await comparePassword(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    if (!user.is_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before logging in. Check your inbox for the verification link.',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
     }
 
     res.json({ token: generateToken(user) });
@@ -171,6 +183,58 @@ router.get('/verify-email', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+// ── OAUTH (Google / Apple) ────────────────────────
+// Stubs until client IDs/secrets are provided — wire up
+// passport-google-oauth20 / passport-apple here once keys exist.
+router.get('/google', (req, res) => {
+  res.status(501).json({ error: 'Google sign-in is not set up yet. Please use email and password.', code: 'OAUTH_NOT_CONFIGURED' });
+});
+
+router.get('/apple', (req, res) => {
+  res.status(501).json({ error: 'Apple sign-in is not set up yet. Please use email and password.', code: 'OAUTH_NOT_CONFIGURED' });
+});
+
+// ── RESEND VERIFICATION EMAIL ─────────────────────
+router.post('/resend-verification', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+
+    // Always return success to prevent email enumeration
+    if (result.rows.length === 0) {
+      return res.json({ message: 'If that account exists and is unverified, a new verification email has been sent.' });
+    }
+
+    const user = result.rows[0];
+    if (user.is_verified) {
+      return res.json({ message: 'If that account exists and is unverified, a new verification email has been sent.' });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await pool.query(
+      `UPDATE users
+       SET verification_token = $1, verification_token_expires = $2, updated_at = NOW()
+       WHERE id = $3`,
+      [verificationToken, verificationExpires, user.id]
+    );
+
+    try {
+      await sendVerificationEmail(email, user.first_name, verificationToken);
+    } catch (emailErr) {
+      console.error('Failed to send verification email:', emailErr.message);
+    }
+
+    res.json({ message: 'If that account exists and is unverified, a new verification email has been sent.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong' });
   }
 });
 

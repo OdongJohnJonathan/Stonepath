@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { authApi } from "@/lib/api";
+import { authApi, ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
@@ -13,24 +13,58 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
+  const [oauthMessage, setOauthMessage] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
     setError("");
+    setNeedsVerification(false);
+    setResendMessage("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setNeedsVerification(false);
+    setResendMessage("");
     try {
       const { token } = await authApi.login(form);
       await login(token);
       router.push("/");
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
+        setNeedsVerification(true);
+      }
       setError(err instanceof Error ? err.message : "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOAuth = async (provider: "google" | "apple") => {
+    setOauthMessage("");
+    try {
+      await authApi.oauthStub(provider);
+    } catch (err: unknown) {
+      setOauthMessage(err instanceof Error ? err.message : `${provider} sign-in is not available yet.`);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!form.email) return;
+    setResending(true);
+    setResendMessage("");
+    try {
+      const { message } = await authApi.resendVerification(form.email);
+      setResendMessage(message);
+    } catch (err: unknown) {
+      setResendMessage(err instanceof Error ? err.message : "Failed to resend verification email.");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -46,10 +80,8 @@ export default function LoginPage() {
       <div style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 1 }}>
 
         <div onClick={() => router.push("/")} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40, cursor: "pointer", justifyContent: "center" }}>
-          <div style={{ width: 28, height: 28, border: "1px solid #c9a84c", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 12, height: 12, background: "#c9a84c", transform: "rotate(45deg)" }} />
-          </div>
-          <span style={{ fontSize: 22, color: "white", fontFamily: "Cormorant Garamond, serif" }}>Stonepath™</span>
+          <img src="/logo.png" alt="Stonepath Estates" style={{ height: 36, width: 36, borderRadius: "50%", objectFit: "cover" }} />
+          <span style={{ fontSize: 22, color: "white", fontFamily: "Cormorant Garamond, serif" }}>Stonepath Estates</span>
         </div>
 
         <div style={{ background: "rgba(13,15,26,0.85)", border: "1px solid rgba(201,168,76,0.2)", backdropFilter: "blur(24px)", padding: "40px 36px" }}>
@@ -59,6 +91,17 @@ export default function LoginPage() {
           {error && (
             <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", padding: "12px 16px", fontSize: 13, marginBottom: 24 }}>
               {error}
+              {needsVerification && (
+                <div style={{ marginTop: 10 }}>
+                  <button type="button" onClick={handleResend} disabled={resending}
+                    style={{ background: "transparent", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171", padding: "8px 14px", fontSize: 12, cursor: resending ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                    {resending ? "Sending..." : "Resend verification email"}
+                  </button>
+                </div>
+              )}
+              {resendMessage && (
+                <p style={{ marginTop: 8, color: "#8892a4", fontSize: 12 }}>{resendMessage}</p>
+              )}
             </div>
           )}
 
@@ -91,6 +134,20 @@ export default function LoginPage() {
             <span style={{ fontSize: 11, color: "#8892a4", letterSpacing: "0.1em" }}>OR</span>
             <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
           </div>
+
+          <div style={{ display: "flex", gap: 10, marginBottom: oauthMessage ? 12 : 24 }}>
+            <button type="button" onClick={() => handleOAuth("google")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.2)", color: "white", padding: "11px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <span style={{ fontWeight: 700, color: "#c9a84c" }}>G</span> Google
+            </button>
+            <button type="button" onClick={() => handleOAuth("apple")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.2)", color: "white", padding: "11px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <span style={{ fontWeight: 700, color: "#c9a84c" }}></span> Apple
+            </button>
+          </div>
+          {oauthMessage && (
+            <p style={{ textAlign: "center", fontSize: 12, color: "#8892a4", marginBottom: 24 }}>{oauthMessage}</p>
+          )}
 
           <p style={{ textAlign: "center", fontSize: 13, color: "#8892a4" }}>
             Don&apos;t have an account?{" "}

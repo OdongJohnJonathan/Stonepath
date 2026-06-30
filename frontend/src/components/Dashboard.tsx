@@ -15,7 +15,6 @@ import HostShortStaysPanel from '@/components/HostShortStaysPanel';
 import MyShortStaysPanel from '@/components/MyShortStaysPanel';
 import AdminServiceProvidersPanel from '@/components/AdminServiceProvidersPanel';
 import MyServiceProviderPanel from '@/components/MyServiceProviderPanel';
-import ProfileSettingsPanel from '@/components/ProfileSettingsPanel';
 import AdminNewsletterPanel from '@/components/AdminNewsletterPanel';
 
 interface DashboardProps {
@@ -25,7 +24,8 @@ interface DashboardProps {
 }
 
 // ── COLLAPSIBLE SECTION WRAPPER ──────────────────
-function Section({ title, subtitle, badge, defaultOpen = true, children }: {
+function Section({ id, title, subtitle, badge, defaultOpen = true, children }: {
+  id?: string;
   title: string;
   subtitle?: string;
   badge?: string | number;
@@ -34,7 +34,7 @@ function Section({ title, subtitle, badge, defaultOpen = true, children }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 2, overflow: "hidden" }}>
+    <div id={id} style={{ border: "1px solid var(--border)", borderRadius: 2, overflow: "hidden", scrollMarginTop: 88 }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "var(--card-bg)", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}>
@@ -406,13 +406,6 @@ export default function Dashboard({ properties, saved, onPropertySubmitted }: Da
 
       {/* ── SECTIONS ── */}
       <div style={{ display: 'grid', gap: 12 }}>
-
-        {/* Profile Settings — all roles */}
-        <Section title="Profile Settings" subtitle="Update your account details">
-          <div style={{ padding: 24 }}>
-            <ProfileSettingsPanel />
-          </div>
-        </Section>
 
         {/* Saved Properties */}
         {(isBuyer || isAgent) && (

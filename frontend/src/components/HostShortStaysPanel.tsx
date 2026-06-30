@@ -84,7 +84,7 @@ export default function HostShortStaysPanel() {
                 {[
                   { label: "Check-in", value: fmtDate(b.check_in) },
                   { label: "Check-out", value: fmtDate(b.check_out) },
-                  { label: "Duration", value: `${nights(b)} nights · ${b.guests} guests` },
+                  { label: "Duration", value: `${nights(b)} days · ${b.guests} guests` },
                   { label: "Total", value: fmtMoney(b.total_amount, b.currency), gold: true },
                 ].map(({ label, value, gold }) => (
                   <div key={label} style={{ background: "var(--card-bg)", padding: "8px 10px", borderRadius: 2, border: "1px solid var(--border)" }}>

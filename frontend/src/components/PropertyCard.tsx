@@ -28,7 +28,7 @@ export default function PropertyCard({ property, onView, onSave, saved }: Proper
       ? `${currency} ${(price / 1000000).toFixed(1)}M`
       : `${currency} ${(price / 1000).toFixed(0)}K`;
 
-    return isShortStay ? `${formatted}/night` : formatted;
+    return isShortStay ? `${formatted}/day` : formatted;
   };
 
   const thumbnail = property.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80";

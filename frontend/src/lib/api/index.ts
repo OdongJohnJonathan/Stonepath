@@ -4,7 +4,7 @@ export { usersApi } from "./users";
 export { savedApi } from "./saved";
 export { enquiriesApi } from "./enquiries";
 export { adminApi } from "./admin";
-export { apiRequest } from "./client";
+export { apiRequest, ApiError } from "./client";
 export { inspectionsApi } from "./inspections";
 export { shortStaysApi } from "./shortStays";
 export { serviceProvidersApi } from "./serviceProviders";

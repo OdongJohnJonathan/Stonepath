@@ -42,10 +42,8 @@ export default function Footer({ onNavigate }: FooterProps) {
         {/* Brand */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ width: 28, height: 28, border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 12, height: 12, background: 'var(--gold)', transform: 'rotate(45deg)' }} />
-            </div>
-            <span className="font-serif" style={{ fontSize: 22, color: 'white' }}>Stonepath™</span>
+            <img src="/logo.png" alt="Stonepath Estates" style={{ height: 36, width: 36, borderRadius: '50%', objectFit: 'cover' }} />
+            <span className="font-serif" style={{ fontSize: 22, color: 'white' }}>Stonepath Estates</span>
           </div>
           <p style={{ fontSize: 13, lineHeight: 1.7, maxWidth: 280, color: 'rgba(255,255,255,0.55)' }}>
             Premium real estate listings across East Africa.

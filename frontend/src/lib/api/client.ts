@@ -6,6 +6,14 @@ type RequestOptions = {
   token?: string;
 };
 
+export class ApiError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestOptions = {}
@@ -28,7 +36,7 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(error.error || `HTTP ${response.status}`);
+    throw new ApiError(error.error || `HTTP ${response.status}`, error.code);
   }
 
   return response.json();

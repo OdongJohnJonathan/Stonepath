@@ -64,7 +64,7 @@ export default function MyShortStaysPanel() {
                   <div style={{ display: "flex", gap: 16, fontSize: 12, flexWrap: "wrap" }}>
                     <div><span style={{ color: "var(--text-muted)" }}>In: </span>{fmtDate(b.check_in)}</div>
                     <div><span style={{ color: "var(--text-muted)" }}>Out: </span>{fmtDate(b.check_out)}</div>
-                    <div><span style={{ color: "var(--text-muted)" }}>{nights(b)} night{nights(b) !== 1 ? "s" : ""} · </span>{b.guests} guest{b.guests !== 1 ? "s" : ""}</div>
+                    <div><span style={{ color: "var(--text-muted)" }}>{nights(b)} day{nights(b) !== 1 ? "s" : ""} · </span>{b.guests} guest{b.guests !== 1 ? "s" : ""}</div>
                     <div style={{ color: "var(--gold)", fontWeight: 600 }}>{fmtMoney(b.total_amount, b.currency)}</div>
                   </div>
                   {b.status === "confirmed" && b.host_email && (

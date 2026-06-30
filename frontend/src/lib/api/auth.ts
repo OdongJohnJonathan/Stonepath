@@ -21,6 +21,7 @@ export interface RegisterPayload {
   location?: string;
   whatsapp?: string;
   years_experience?: number;
+  logo_url?: string;
 }
 
 export interface AuthResponse {
@@ -33,4 +34,10 @@ export const authApi = {
 
   register: (data: RegisterPayload) =>
     apiRequest<AuthResponse>("/auth/register", { method: "POST", body: data }),
+
+  resendVerification: (email: string) =>
+    apiRequest<{ message: string }>("/auth/resend-verification", { method: "POST", body: { email } }),
+
+  oauthStub: (provider: "google" | "apple") =>
+    apiRequest<{ message: string }>(`/auth/${provider}`),
 };

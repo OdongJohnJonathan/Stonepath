@@ -1,7 +1,7 @@
 "use client";
 
 import { Icons } from '@/components/Icons';
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import HeroSection from '@/components/HeroSection';
 import type { HeroSearchParams } from '@/components/HeroSection';
@@ -9,6 +9,7 @@ import PropertyCard from '@/components/PropertyCard';
 import MapView from '@/components/MapView';
 import PropertyDetail from '@/components/PropertyDetail';
 import Dashboard from '@/components/Dashboard';
+import ProfileSettingsPanel from '@/components/ProfileSettingsPanel';
 import { propertiesApi } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import type { Property } from "@/lib/api";
@@ -35,6 +36,8 @@ export default function LuxeEstate() {
 
   const [dark, setDark] = useState(false);
   const [page, setPage] = useState('home');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [dashboardProperties, setDashboardProperties] = useState<Property[]>([]);
@@ -106,6 +109,20 @@ export default function LuxeEstate() {
     setPage('detail');
   };
 
+  const goToProfileSettings = () => {
+    setPage('profile');
+    setMenuOpen(false);
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
   // Memoize homepage properties to avoid recalculating on every render
   const homepageProps = useMemo(() => {
     const featured = properties.filter(p => p.is_featured);
@@ -131,10 +148,8 @@ export default function LuxeEstate() {
 
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => setPage('home')}>
-            <div style={{ width: 28, height: 28, border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 12, height: 12, background: 'var(--gold)', transform: 'rotate(45deg)' }} />
-            </div>
-            <span className="font-serif" style={{ fontSize: 22, color: page === 'home' ? 'white' : 'var(--text)' }}>Stonepath™</span>
+            <img src="/logo.png" alt="Stonepath Estates" style={{ height: 36, width: 36, borderRadius: '50%', objectFit: 'cover' }} />
+            <span className="font-serif" style={{ fontSize: 22, color: page === 'home' ? 'white' : 'var(--text)' }}>Stonepath Estates</span>
           </div>
 
           {/* Nav Links — hidden on mobile */}
@@ -158,30 +173,86 @@ export default function LuxeEstate() {
             ))}
           </div>
 
-          {/* Right side: auth + dark mode */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {user ? (
-              <>
-                <span className="hide-mobile" style={{ fontSize: 13, color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
-                  {user.first_name}
-                </span>
-                <button onClick={logout} style={{ background: 'transparent', border: '1px solid var(--gold)', color: 'var(--gold)', padding: '6px 14px', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => router.push('/login')} style={{ background: 'transparent', border: 'none', color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  Sign In
-                </button>
-                <button onClick={() => router.push('/register')} className="hide-mobile" style={{ background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '8px 18px', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  Register
-                </button>
-              </>
-            )}
-            <div onClick={() => setDark(!dark)} style={{ cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: page === 'home' ? '#fff' : 'var(--text)' }}>
-              {dark ? <Icons.Moon size={20} /> : <Icons.Sun size={20} />}
+          {/* Right side: hamburger user menu */}
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <div
+              onClick={() => setMenuOpen(o => !o)}
+              title="Menu"
+              style={{ cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: page === 'home' ? '#fff' : 'var(--text)' }}>
+              <Icons.Menu size={20} />
             </div>
+
+            {menuOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 12px)', right: 0, width: 260,
+                background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 4,
+                boxShadow: '0 12px 32px rgba(0,0,0,0.35)', overflow: 'hidden', zIndex: 200,
+              }}>
+                {user ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, borderBottom: '1px solid var(--border)' }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                        border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: 13, fontWeight: 600,
+                      }}>
+                        {user.profile_image_url ? (
+                          <img src={user.profile_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || <Icons.User size={16} />
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {user.first_name} {user.last_name}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button onClick={goToProfileSettings}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', padding: '12px 16px', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>
+                      <Icons.User size={16} /> Profile Settings
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {dark ? <Icons.Moon size={15} /> : <Icons.Sun size={15} />} {dark ? 'Dark Mode' : 'Light Mode'}
+                      </span>
+                      <div onClick={() => setDark(!dark)} style={{ width: 36, height: 20, borderRadius: 10, background: dark ? 'var(--gold)' : 'var(--border)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s ease', flexShrink: 0 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: dark ? 18 : 2, transition: 'left 0.2s ease' }} />
+                      </div>
+                    </div>
+
+                    <button onClick={() => { logout(); setMenuOpen(false); }}
+                      style={{ width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: 13, color: '#f87171', cursor: 'pointer', textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => { router.push('/login'); setMenuOpen(false); }}
+                      style={{ width: '100%', background: 'none', border: 'none', padding: '12px 16px', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>
+                      Sign In
+                    </button>
+                    <button onClick={() => { router.push('/register'); setMenuOpen(false); }}
+                      style={{ width: '100%', background: 'none', border: 'none', borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: 13, color: 'var(--gold)', fontWeight: 600, cursor: 'pointer', textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>
+                      Register
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {dark ? <Icons.Moon size={15} /> : <Icons.Sun size={15} />} {dark ? 'Dark Mode' : 'Light Mode'}
+                      </span>
+                      <div onClick={() => setDark(!dark)} style={{ width: 36, height: 20, borderRadius: 10, background: dark ? 'var(--gold)' : 'var(--border)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s ease', flexShrink: 0 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: dark ? 18 : 2, transition: 'left 0.2s ease' }} />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -313,6 +384,22 @@ export default function LuxeEstate() {
               saved={savedIds}
               onPropertySubmitted={refreshDashboard}
             />
+          </div>
+        )}
+
+        {/* ── PROFILE SETTINGS ── */}
+        {page === 'profile' && (
+          <div style={{ paddingTop: 72 }}>
+            <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px 120px' }}>
+              <button onClick={() => setPage('dashboard')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', marginBottom: 20, fontFamily: "'DM Sans', sans-serif" }}>
+                <Icons.ChevronLeft size={16} /> Back to Dashboard
+              </button>
+              <p style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 6 }}>My Account</p>
+              <h2 className="font-serif" style={{ fontSize: 32, fontWeight: 300, marginBottom: 24 }}>Profile Settings</h2>
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', padding: 24 }}>
+                <ProfileSettingsPanel />
+              </div>
+            </div>
           </div>
         )}
       </main>

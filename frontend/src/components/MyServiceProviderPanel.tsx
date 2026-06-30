@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { serviceProvidersApi, type ServiceProvider, type ServiceCategory } from "@/lib/api/serviceProviders";
 import { useAuth } from "@/context/AuthContext";
 import { UGANDA_DISTRICTS, SUPPORTED_COUNTRIES } from "@/lib/ugandaDistricts";
+import { uploadImage } from "@/lib/uploadImage";
 
 const ALL_CATEGORIES: ServiceCategory[] = [
   { id: 1,  tier: "Legal & Financial",          name: "Land Title Surveyors" },
@@ -47,8 +48,14 @@ export default function MyServiceProviderPanel() {
     district: "",
     location: "",
     years_experience: "",
+    logo_url: "",
   });
   const [categoryIds, setCategoryIds] = useState<number[]>([]);
+  const [portfolio, setPortfolio] = useState<string[]>([]);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [portfolioUploading, setPortfolioUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const portfolioInputRef = useRef<HTMLInputElement>(null);
 
   const [tab, setTab] = useState<"listing" | "enquiries">("listing");
   const [enquiries, setEnquiries] = useState<Array<{
@@ -87,8 +94,10 @@ const fetchEnquiries = async () => {
           district: p.district || "",
           location: p.location || "",
           years_experience: p.years_experience ? String(p.years_experience) : "",
+          logo_url: p.logo_url || "",
         });
         setCategoryIds((p.categories ?? []).map(c => c.id));
+        setPortfolio(p.images ?? []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -110,6 +119,47 @@ const fetchEnquiries = async () => {
     setCategoryIds(ids => ids.includes(id) ? ids.filter(c => c !== id) : [...ids, id]);
   };
 
+  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5MB."); return; }
+
+    setLogoUploading(true);
+    setError("");
+    try {
+      const url = await uploadImage(file);
+      setForm(f => ({ ...f, logo_url: url }));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload photo.");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handlePortfolioSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    const valid = files.filter(f => f.type.startsWith("image/") && f.size <= 5 * 1024 * 1024);
+    if (valid.length !== files.length) { setError("Some files were skipped — must be images under 5MB."); }
+
+    setPortfolioUploading(true);
+    try {
+      const urls = await Promise.all(valid.map(f => uploadImage(f)));
+      setPortfolio(p => [...p, ...urls]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload images.");
+    } finally {
+      setPortfolioUploading(false);
+    }
+  };
+
+  const removePortfolioImage = (idx: number) => {
+    setPortfolio(p => p.filter((_, i) => i !== idx));
+  };
+
   const handleSave = async () => {
     if (!token) return;
     if (!form.business_name.trim()) { setError("Business name is required."); return; }
@@ -124,6 +174,7 @@ const fetchEnquiries = async () => {
         ...form,
         years_experience: form.years_experience ? parseInt(form.years_experience) : undefined,
         category_ids: categoryIds,
+        images: portfolio,
       }, token);
       setProvider(updated);
       setEditing(false);
@@ -241,6 +292,11 @@ const fetchEnquiries = async () => {
           {!editing ? (
             <>
               <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13, marginBottom: 20 }}>
+                {provider.logo_url && (
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", overflow: "hidden", border: "1px solid var(--border)" }}>
+                    <img src={provider.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                )}
                 <div>
                   <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Business Name</span>
                   <p style={{ marginTop: 4 }}>{provider.business_name}</p>
@@ -287,6 +343,18 @@ const fetchEnquiries = async () => {
                     ))}
                   </div>
                 </div>
+                {(provider.images ?? []).length > 0 && (
+                  <div>
+                    <span style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Portfolio</span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                      {provider.images!.map((url, idx) => (
+                        <div key={url + idx} style={{ width: 72, height: 72, borderRadius: 2, overflow: "hidden", border: "1px solid var(--border)" }}>
+                          <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <button onClick={() => setEditing(true)}
                 style={{ background: "var(--gold)", border: "none", color: "#000", padding: "10px 24px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2, alignSelf: "flex-start" }}>
@@ -296,6 +364,37 @@ const fetchEnquiries = async () => {
           ) : (
             /* Edit form */
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Business Logo / Photo</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div
+                    onClick={() => !logoUploading && logoInputRef.current?.click()}
+                    style={{
+                      width: 64, height: 64, borderRadius: "50%", overflow: "hidden",
+                      background: "var(--surface)", border: "1px solid var(--border)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: logoUploading ? "default" : "pointer", flexShrink: 0, position: "relative",
+                    }}>
+                    {form.logo_url ? (
+                      <img src={form.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Logo</span>
+                    )}
+                    {logoUploading && (
+                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#fff" }}>
+                        ...
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <button type="button" onClick={() => !logoUploading && logoInputRef.current?.click()}
+                      style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text)", padding: "6px 14px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+                      {logoUploading ? "Uploading..." : form.logo_url ? "Change Photo" : "Upload Photo"}
+                    </button>
+                    <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoSelect} style={{ display: "none" }} />
+                  </div>
+                </div>
+              </div>
               <div>
                 <label style={labelStyle}>Business / Service Name *</label>
                 <input name="business_name" value={form.business_name} onChange={handleChange} style={inputStyle} />
@@ -365,6 +464,31 @@ const fetchEnquiries = async () => {
                   ))}
                 </div>
                 <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{categoryIds.length} selected</p>
+              </div>
+              <div>
+                <label style={labelStyle}>Portfolio / Past Work</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+                  {portfolio.map((url, idx) => (
+                    <div key={url + idx} style={{ position: "relative", width: 72, height: 72, borderRadius: 2, overflow: "hidden", border: "1px solid var(--border)" }}>
+                      <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <button type="button" onClick={() => removePortfolioImage(idx)}
+                        style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", cursor: "pointer", fontSize: 11, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <div
+                    onClick={() => !portfolioUploading && portfolioInputRef.current?.click()}
+                    style={{
+                      width: 72, height: 72, borderRadius: 2, border: "1px dashed var(--border)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: portfolioUploading ? "default" : "pointer", color: "var(--text-muted)", fontSize: 11, textAlign: "center",
+                    }}>
+                    {portfolioUploading ? "Uploading..." : "+ Add Photos"}
+                  </div>
+                  <input ref={portfolioInputRef} type="file" accept="image/*" multiple onChange={handlePortfolioSelect} style={{ display: "none" }} />
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-muted)" }}>Showcase photos of your completed work.</p>
               </div>
               <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", padding: "10px 14px", fontSize: 12, color: "#f59e0b", borderRadius: 2 }}>
                 ℹ️ Saving changes will resubmit your listing for admin review before it appears publicly again.

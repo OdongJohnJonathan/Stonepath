@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { usersApi } from "@/lib/api/users";
 import { useAuth } from "@/context/AuthContext";
+import { uploadImage } from "@/lib/uploadImage";
 
 export default function ProfileSettingsPanel() {
   const { user, token, refreshUser } = useAuth();
@@ -16,6 +17,31 @@ export default function ProfileSettingsPanel() {
   const [saving, setSaving]   = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError]     = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !token) return;
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Image must be under 5MB."); return; }
+
+    setUploadingPhoto(true);
+    setError("");
+    try {
+      const url = await uploadImage(file);
+      setForm(f => ({ ...f, profile_image_url: url }));
+      await usersApi.updateMe({ profile_image_url: url }, token);
+      await refreshUser();
+      setSuccess("Profile photo updated.");
+      setTimeout(() => setSuccess(""), 4000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   // Password change state
   const [pwForm, setPwForm] = useState({
@@ -113,7 +139,17 @@ export default function ProfileSettingsPanel() {
 
         {/* Avatar */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, paddingBottom: 20, borderBottom: "1px solid var(--border)" }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoSelect}
+            style={{ display: "none" }}
+          />
+          <div
+            onClick={() => !uploadingPhoto && fileInputRef.current?.click()}
+            title="Click to change photo"
+            style={{ position: "relative", width: 64, height: 64, borderRadius: "50%", background: "var(--surface)", border: "1px solid var(--border)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: uploadingPhoto ? "wait" : "pointer" }}>
             {form.profile_image_url ? (
               <img src={form.profile_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
@@ -121,10 +157,20 @@ export default function ProfileSettingsPanel() {
                 {user?.first_name?.[0]?.toUpperCase() || "?"}
               </span>
             )}
+            <div style={{
+              position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              opacity: uploadingPhoto ? 1 : 0, transition: "opacity 0.15s ease",
+            }}>
+              <span style={{ fontSize: 9, color: "#fff", textAlign: "center", padding: "0 4px" }}>
+                {uploadingPhoto ? "Uploading…" : "Change"}
+              </span>
+            </div>
           </div>
           <div>
             <div style={{ fontWeight: 500, fontSize: 15 }}>{user?.first_name} {user?.last_name}</div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{user?.email}</div>
+            <div style={{ fontSize: 11, color: "var(--gold)", marginTop: 4 }}>Click your photo to change it</div>
             <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
               <span style={{ fontSize: 10, background: "var(--surface)", border: "1px solid var(--border)", padding: "2px 8px", borderRadius: 10, color: "var(--text-muted)" }}>
                 {roleLabel[user?.role || 1]}
@@ -178,15 +224,6 @@ export default function ProfileSettingsPanel() {
             <label style={labelStyle}>Phone Number</label>
             <input name="phone_number" type="tel" value={form.phone_number} onChange={handleChange}
               placeholder="+256 700 000 000" style={inputStyle} />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Profile Photo URL</label>
-            <input name="profile_image_url" value={form.profile_image_url} onChange={handleChange}
-              placeholder="https://..." style={inputStyle} />
-            <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-              Paste a direct image URL. Cloudinary upload coming soon.
-            </p>
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>

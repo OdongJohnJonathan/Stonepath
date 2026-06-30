@@ -390,7 +390,7 @@ export default function SubmitPropertyForm({ onSuccess, onCancel }: Props) {
                     onChange={handleChange} placeholder="4" style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Min Nights</label>
+                  <label style={labelStyle}>Min Days</label>
                   <input name="min_nights" type="number" min="1" value={form.min_nights}
                     onChange={handleChange} placeholder="1" style={inputStyle} />
                 </div>
