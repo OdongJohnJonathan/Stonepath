@@ -17,6 +17,7 @@ import ServiceProviderDetail from '@/components/ServiceProviderDetail';
 import type { ServiceProvider } from '@/lib/api/serviceProviders';
 import AgentProfile from '@/components/AgentProfile';
 import NewsletterSignup from '@/components/NewsletterSignup';
+import Footer from '@/components/Footer';
 
 // ── FEATURED ROTATION FOR HOMEPAGE ──
 const shuffle = <T,>(arr: T[]): T[] => {
@@ -170,10 +171,10 @@ export default function LuxeEstate() {
               </>
             ) : (
               <>
-                <button onClick={() => router.push('/login')} className="hide-mobile" style={{ background: 'transparent', border: 'none', color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                <button onClick={() => router.push('/login')} style={{ background: 'transparent', border: 'none', color: page === 'home' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', fontSize: 13, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
                   Sign In
                 </button>
-                <button onClick={() => router.push('/register')} style={{ background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '8px 18px', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                <button onClick={() => router.push('/register')} className="hide-mobile" style={{ background: 'var(--gold)', border: 'none', color: '#0a0a0b', padding: '8px 18px', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
                   Register
                 </button>
               </>
@@ -326,6 +327,7 @@ export default function LuxeEstate() {
       }}>
         <div onClick={() => setPage('home')} style={{ opacity: page === 'home' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Home /></div>
         <div onClick={() => setPage('listings')} style={{ opacity: page === 'listings' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Search /></div>
+        <div onClick={() => setPage('services')} style={{ opacity: page === 'services' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Briefcase /></div>
         <div onClick={() => setPage('map')} style={{ opacity: page === 'map' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Map /></div>
         <div onClick={() => setPage('dashboard')} style={{ opacity: page === 'dashboard' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.User /></div>
       </div>
@@ -344,6 +346,8 @@ export default function LuxeEstate() {
             />
           </div>
         )}
+
+      <Footer onNavigate={setPage} />
 
     </div>
   );

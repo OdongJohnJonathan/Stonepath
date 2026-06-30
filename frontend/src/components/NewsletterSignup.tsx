@@ -62,22 +62,20 @@ export default function NewsletterSignup() {
           placeholder="First name (optional)"
           style={{ width: "100%", background: "var(--surface)", border: "1px solid var(--border)", padding: "12px 16px", color: "var(--text)", fontSize: 14, outline: "none", fontFamily: "'DM Sans', sans-serif", borderRadius: 2, boxSizing: "border-box" }}
         />
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            type="email"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setError(""); }}
-            placeholder="your@email.com"
-            onKeyDown={e => e.key === "Enter" && handleSubmit()}
-            style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--border)", padding: "12px 16px", color: "var(--text)", fontSize: 14, outline: "none", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            style={{ background: loading ? "rgba(201,168,76,0.4)" : "var(--gold)", border: "none", color: "#000", padding: "12px 24px", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2, whiteSpace: "nowrap" }}>
-            {loading ? "..." : "Subscribe"}
-          </button>
-        </div>
+        <input
+          type="email"
+          value={email}
+          onChange={e => { setEmail(e.target.value); setError(""); }}
+          placeholder="your@email.com"
+          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+          style={{ width: "100%", background: "var(--surface)", border: "1px solid var(--border)", padding: "12px 16px", color: "var(--text)", fontSize: 14, outline: "none", fontFamily: "'DM Sans', sans-serif", borderRadius: 2, boxSizing: "border-box" }}
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          style={{ width: "100%", background: loading ? "rgba(201,168,76,0.4)" : "var(--gold)", border: "none", color: "#000", padding: "12px 24px", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", borderRadius: 2 }}>
+          {loading ? "..." : "Subscribe"}
+        </button>
         <p style={{ fontSize: 11, color: "var(--text-muted)" }}>No spam. Unsubscribe any time.</p>
       </div>
     </div>

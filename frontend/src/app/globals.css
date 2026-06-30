@@ -436,13 +436,11 @@ select option {
     font-size: 3rem !important;
   }
 
-  /* Hero search — stack vertically */
-  .glass > div[style*="flex-wrap"] {
-    flex-direction: column;
-  }
-  .glass > div > div[style*="border-right"] {
-    border-right: none !important;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+  /* Hero search — single horizontal row, scrollable, same styling as desktop */
+  .hero-search-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Navbar */
@@ -451,6 +449,14 @@ select option {
 
   /* Bottom nav padding */
   main { padding-bottom: 72px; }
+  footer { padding-bottom: 72px; }
+
+  /* Footer — stack columns on mobile */
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+    padding: 40px 24px 24px !important;
+  }
 
   /* Listings page */
   .listings-page {
@@ -558,6 +564,11 @@ select option {
   }
   .detail-sidebar {
     flex: 0 0 280px !important;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 32px 24px !important;
   }
 }
 

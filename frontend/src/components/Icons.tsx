@@ -155,4 +155,34 @@ export const Icons = {
       <rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22V12h6v10M9 6h1M14 6h1M9 10h1M14 10h1"/>
     </svg>
   ),
+  Briefcase: ({ size = 20, ...props }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+      <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16M2 13h20"/>
+    </svg>
+  ),
+  Mail: ({ size = 16, ...props }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+      <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/>
+    </svg>
+  ),
+  Instagram: ({ size = 18, ...props }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+      <rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+  ),
+  Facebook: ({ size = 18, ...props }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+      <path d="M15 8h2V4h-2a4 4 0 00-4 4v2H9v4h2v6h3v-6h2.5l.5-4H14V8a1 1 0 011-1z"/>
+    </svg>
+  ),
+  Twitter: ({ size = 18, ...props }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M18.9 3H22l-7.4 8.4L23 21h-6.8l-5.3-6.6L4.9 21H2l7.9-9L1.7 3h7l4.8 6 5.4-6z"/>
+    </svg>
+  ),
+  LinkedIn: ({ size = 18, ...props }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+      <rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 10v7M7 7v.01M11 17v-7M11 17v-4a2.5 2.5 0 015 0v4"/>
+    </svg>
+  ),
 };
