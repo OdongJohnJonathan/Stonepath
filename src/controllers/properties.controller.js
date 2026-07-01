@@ -38,24 +38,30 @@ export const getProperties = async (req, res) => {
       filters.push(`(p.amenities->>'availability' IS NULL OR p.amenities->>'availability' != 'taken')`);
     }
 
-    filters.push(`(p.featured_until IS NULL OR p.featured_until > NOW())`);
     filters.push("p.deleted_at IS NULL");
 
     const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
     const offset = (page - 1) * limit;
 
+    // Featured status is time-boxed by featured_until — an expired feature period
+    // should only drop sort priority, it must never hide the listing itself.
     const result = await pool.query(
   `SELECT p.*, u.is_agent_verified as agent_verified,
           CONCAT(u.first_name, ' ', u.last_name) as agent_name
    FROM properties p
    LEFT JOIN users u ON p.created_by = u.id
    ${whereClause}
-   ORDER BY p.is_featured DESC, p.created_at DESC
+   ORDER BY (p.is_featured AND (p.featured_until IS NULL OR p.featured_until > NOW())) DESC, p.created_at DESC
    LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
   [...values, limit, offset]
 );
 
-    res.json(result.rows);
+    const rows = result.rows.map(p => ({
+      ...p,
+      is_featured: p.is_featured && (!p.featured_until || new Date(p.featured_until) > new Date()),
+    }));
+
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch properties" });

@@ -23,7 +23,7 @@ router.post("/subscribe", async (req, res) => {
       `INSERT INTO newsletter_subscribers (email, first_name, token, is_active)
        VALUES ($1, $2, $3, true)
        ON CONFLICT (email) DO UPDATE
-       SET is_active = true, first_name = COALESCE($2, newsletter_subscribers.first_name), updated_at = NOW()`,
+       SET is_active = true, first_name = COALESCE($2, newsletter_subscribers.first_name), token = $3, updated_at = NOW()`,
       [email.toLowerCase().trim(), first_name || null, unsubToken]
     );
 
@@ -35,7 +35,7 @@ router.post("/subscribe", async (req, res) => {
         subject: "You're subscribed to Stonepath updates",
         html: `
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;">
-            <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath™</h1>
+            <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath Estates</h1>
             <h2 style="font-size:20px;font-weight:400;margin-bottom:12px;">You're on the list${first_name ? `, ${first_name}` : ""}!</h2>
             <p style="color:#8892a4;line-height:1.6;margin-bottom:24px;">
               You'll now receive updates about new property listings, short stay openings, and exclusive offers on Stonepath Estates.
@@ -65,10 +65,13 @@ router.get("/unsubscribe", async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: "Invalid unsubscribe link" });
   try {
-    await pool.query(
-      "UPDATE newsletter_subscribers SET is_active = false WHERE token = $1",
+    const result = await pool.query(
+      "UPDATE newsletter_subscribers SET is_active = false, updated_at = NOW() WHERE token = $1",
       [token]
     );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Invalid or expired unsubscribe link" });
+    }
     res.json({ message: "Unsubscribed successfully" });
   } catch (err) {
     console.error(err);
@@ -110,7 +113,7 @@ router.post("/send", authenticate, async (req, res) => {
             subject,
             html: `
               <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;">
-                <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath™</h1>
+                <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath Estates</h1>
                 ${html_body}
                 <hr style="border-color:#333;margin:32px 0;" />
                 <p style="color:#555;font-size:12px;">
@@ -201,7 +204,7 @@ router.post("/notify-new-property", authenticate, async (req, res) => {
             subject: `New on Stonepath: ${p.title}`,
             html: `
               <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;">
-                <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath™</h1>
+                <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath Estates</h1>
                 ${html_body}
                 <hr style="border-color:#333;margin:32px 0;" />
                 <p style="color:#555;font-size:12px;">

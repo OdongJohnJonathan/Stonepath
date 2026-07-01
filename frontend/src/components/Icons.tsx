@@ -190,4 +190,9 @@ export const Icons = {
       <rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 10v7M7 7v.01M11 17v-7M11 17v-4a2.5 2.5 0 015 0v4"/>
     </svg>
   ),
+  TikTok: ({ size = 18, ...props }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M16.5 2h-3v13.5a2.5 2.5 0 11-2.5-2.5c.17 0 .34.01.5.04V9.9a5.5 5.5 0 105.5 5.5V8.8a7.4 7.4 0 004.5 1.53V7.34A4.5 4.5 0 0116.5 2z"/>
+    </svg>
+  ),
 };

@@ -48,6 +48,12 @@ export default function LuxeEstate() {
   const [filterType, setFilterType] = useState('All');
   const [heroSearch, setHeroSearch] = useState<HeroSearchParams | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<{id: string; name: string; verified: boolean} | null>(null);
+  const [mapReturnPage, setMapReturnPage] = useState('home');
+
+  const goToMap = () => {
+    setMapReturnPage(page);
+    setPage('map');
+  };
 
   // Public listings — approved only
   useEffect(() => {
@@ -123,14 +129,37 @@ export default function LuxeEstate() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  // Memoize homepage properties to avoid recalculating on every render
-  const homepageProps = useMemo(() => {
-    const featured = properties.filter(p => p.is_featured);
-    const nonFeatured = properties.filter(p => !p.is_featured);
-    return [
-      ...shuffle(featured),
-      ...shuffle(nonFeatured),
-    ].slice(0, 3);
+  // Homepage featured section — falls back to a flat "latest" list while featured
+  // adoption is low, then switches to categorized sections once there's enough
+  // curated content to justify the breakdown.
+  const homepageSection = useMemo(() => {
+    const totalFeatured = properties.filter(p => p.is_featured).length;
+    const byLatest = (pool: Property[]) =>
+      [...pool].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+    if (totalFeatured === 0) {
+      return { mode: 'flat' as const, items: byLatest(properties).slice(0, 6) };
+    }
+    if (totalFeatured <= 3) {
+      const featured = properties.filter(p => p.is_featured);
+      const rest = byLatest(properties.filter(p => !p.is_featured)).slice(0, 6 - featured.length);
+      return { mode: 'flat' as const, items: [...featured, ...rest] };
+    }
+
+    const pickCategory = (pool: Property[]) => {
+      const featured = shuffle(pool.filter(p => p.is_featured));
+      const nonFeatured = shuffle(pool.filter(p => !p.is_featured));
+      return [...featured, ...nonFeatured].slice(0, 3);
+    };
+    return {
+      mode: 'categorized' as const,
+      groups: [
+        { label: 'Residential', items: pickCategory(properties.filter(p => p.property_type_id === 1 && p.transaction_type_id !== 3)) },
+        { label: 'Short Stays', items: pickCategory(properties.filter(p => p.transaction_type_id === 3)) },
+        { label: 'Commercial', items: pickCategory(properties.filter(p => p.property_type_id === 2 && p.transaction_type_id !== 3)) },
+        { label: 'Land', items: pickCategory(properties.filter(p => p.property_type_id === 3 && p.transaction_type_id !== 3)) },
+      ],
+    };
   }, [properties]);
 
   return (
@@ -157,7 +186,7 @@ export default function LuxeEstate() {
             {['listings', 'services', 'map', 'dashboard'].map(id => (
               <span
                 key={id}
-                onClick={() => setPage(id)}
+                onClick={() => id === 'map' ? goToMap() : setPage(id)}
                 style={{
                   cursor: 'pointer',
                   textTransform: 'capitalize',
@@ -274,7 +303,7 @@ export default function LuxeEstate() {
                 Featured Listings
               </p>
               <h2 className="font-serif" style={{ fontSize: 32, fontWeight: 300, marginBottom: 32 }}>
-                Recently Added
+                Featured Properties
               </h2>
               {loadingProps ? (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
@@ -284,11 +313,45 @@ export default function LuxeEstate() {
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
                   No properties yet. Check back soon.
                 </div>
-              ) : (
+              ) : homepageSection.mode === 'flat' ? (
                 <div className="property-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
-                  {homepageProps.map(p => (
+                  {homepageSection.items.map(p => (
                     <PropertyCard key={p.id} property={p} onView={handleView} onSave={toggleSave} saved={savedIds.includes(p.id)} />
                   ))}
+                </div>
+              ) : homepageSection.groups.every(g => g.items.length === 0) ? (
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                  No featured properties yet. Check back soon.
+                </div>
+              ) : (
+                homepageSection.groups.filter(g => g.items.length > 0).map((group, i) => (
+                  <div key={group.label} style={{ marginTop: i === 0 ? 0 : 56 }}>
+                    <h3 className="font-serif" style={{ fontSize: 22, fontWeight: 400, marginBottom: 20 }}>
+                      {group.label}
+                    </h3>
+                    <div className="property-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+                      {group.items.map(p => (
+                        <PropertyCard key={p.id} property={p} onView={handleView} onSave={toggleSave} saved={savedIds.includes(p.id)} />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+              {!loadingProps && properties.length > 0 && (
+                (homepageSection.mode === 'flat' && homepageSection.items.length > 0) ||
+                (homepageSection.mode === 'categorized' && homepageSection.groups.some(g => g.items.length > 0))
+              ) && (
+                <div style={{ textAlign: 'center', marginTop: 56 }}>
+                  <button
+                    onClick={() => setPage('listings')}
+                    style={{
+                      background: 'transparent', border: '1px solid var(--gold)', color: 'var(--gold)',
+                      padding: '12px 32px', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em',
+                      textTransform: 'uppercase', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    View All Listings
+                  </button>
                 </div>
               )}
             </section>
@@ -340,7 +403,20 @@ export default function LuxeEstate() {
 
         {/* ── MAP ── */}
         {page === 'map' && (
-          <div style={{ paddingTop: 72, height: '100vh' }}>
+          <div style={{ paddingTop: 72, height: '100vh', position: 'relative', isolation: 'isolate' }}>
+            <button
+              onClick={() => setPage(mapReturnPage)}
+              style={{
+                position: 'fixed', top: 88, left: 16, zIndex: 1000,
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: 'rgba(10,10,11,0.85)', backdropFilter: 'blur(8px)',
+                border: '1px solid var(--border)', color: '#fff',
+                padding: '10px 16px', borderRadius: 999, fontSize: 13,
+                cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              <Icons.ChevronLeft size={16} /> Back
+            </button>
             <MapView
               activePin={activePin}
               setActivePin={setActivePin}
@@ -415,7 +491,7 @@ export default function LuxeEstate() {
         <div onClick={() => setPage('home')} style={{ opacity: page === 'home' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Home /></div>
         <div onClick={() => setPage('listings')} style={{ opacity: page === 'listings' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Search /></div>
         <div onClick={() => setPage('services')} style={{ opacity: page === 'services' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Briefcase /></div>
-        <div onClick={() => setPage('map')} style={{ opacity: page === 'map' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Map /></div>
+        <div onClick={goToMap} style={{ opacity: page === 'map' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.Map /></div>
         <div onClick={() => setPage('dashboard')} style={{ opacity: page === 'dashboard' ? 1 : 0.5, cursor: 'pointer', padding: 12 }}><Icons.User /></div>
       </div>
 

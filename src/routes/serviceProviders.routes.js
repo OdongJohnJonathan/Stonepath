@@ -377,7 +377,7 @@ router.post("/:id/enquiry", async (req, res) => {
         subject: `New enquiry for "${provider.business_name}"`,
         html: `
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;">
-            <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath™</h1>
+            <h1 style="font-size:22px;color:#c9a84c;margin-bottom:24px;">Stonepath Estates</h1>
             <h2 style="font-size:20px;font-weight:400;margin-bottom:4px;">New Service Enquiry</h2>
             <p style="color:#8892a4;font-size:13px;margin-bottom:28px;">Someone is interested in your services.</p>
 

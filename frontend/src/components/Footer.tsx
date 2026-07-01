@@ -3,13 +3,11 @@
 import { useRouter } from "next/navigation";
 import { Icons } from "@/components/Icons";
 
-// TODO: replace placeholders once real values are available
-const SUPPORT_EMAIL = "support@stonepath.com";
+const SUPPORT_EMAIL = "support@stonepathestates.com";
 const SOCIAL_LINKS = [
-  { label: "Instagram", icon: Icons.Instagram, href: "#" },
-  { label: "Facebook", icon: Icons.Facebook, href: "#" },
-  { label: "Twitter", icon: Icons.Twitter, href: "#" },
-  { label: "LinkedIn", icon: Icons.LinkedIn, href: "#" },
+  { label: "Instagram", icon: Icons.Instagram, href: "https://www.instagram.com/stonepath_estates?igsh=eWpzYjRjbmJpOHVx" },
+  { label: "X (Twitter)", icon: Icons.Twitter, href: "https://x.com/stonepathestate?s=11" },
+  { label: "TikTok", icon: Icons.TikTok, href: "https://www.tiktok.com/@stonepath_estates" },
 ];
 
 interface FooterProps {
@@ -88,7 +86,7 @@ export default function Footer({ onNavigate }: FooterProps) {
           </a>
           <div style={{ display: 'flex', gap: 14 }}>
             {SOCIAL_LINKS.map(s => (
-              <a key={s.label} href={s.href} aria-label={s.label} style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label} style={{ color: 'rgba(255,255,255,0.7)' }}>
                 <s.icon size={18} />
               </a>
             ))}
